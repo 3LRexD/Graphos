@@ -1,26 +1,214 @@
-@import "tailwindcss";
+/* app/globals.css */
 
+/* ====== 1. VARIABLES GLOBALES ====== */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-color: #050505; /* Fondo casi negro */
+  --text-color: #E0E0E0; /* Texto gris claro */
+  --primary-color: #A855F7; /* Morado neón */
+  --secondary-color: #7E22CE; /* Morado oscuro */
+  --accent-color: #D8B4FE; /* Morado claro */
+  --card-bg: #111111;
+  --border-color: #222222;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ====== 2. RESET Y ESTILOS BASE ====== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  line-height: 1.6;
+  min-height: 100vh;
+  /* Imagen de fondo de ondas moradas */
+  background-image: url('/fondo-ondas.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+/* ====== 3. NAVEGACIÓN (HEADER) ====== */
+header {
+  border-bottom: 1px solid var(--border-color);
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(5, 5, 5, 0.8);
+  backdrop-filter: blur(10px);
+}
+
+.logo-area {
+  font-weight: 300;
+  font-size: 1.2rem;
+  letter-spacing: 1px;
+  color: var(--text-color);
+}
+
+nav a {
+  color: var(--text-color);
+  text-decoration: none;
+  margin-left: 2rem;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: color 0.3s;
+}
+
+nav a:hover {
+  color: var(--primary-color);
+}
+
+/* ====== 4. PÁGINA DE INICIO (HERO) ====== */
+.hero {
+  height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 2rem;
+}
+
+.hero h1 {
+  font-size: 3.5rem;
+  font-weight: 200;
+  color: #FFFFFF;
+  margin-bottom: 1rem;
+  letter-spacing: 2px;
+}
+
+.hero p {
+  font-size: 1.1rem;
+  margin-bottom: 3rem;
+  color: #888888;
+  max-width: 600px;
+  font-weight: 300;
+}
+
+/* Logo de la Universidad Fijo */
+.logo-container {
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.logo-img {
+  object-fit: contain;
+  filter: drop-shadow(0 0 15px rgba(168, 85, 247, 0.4));
+}
+
+/* Botones Generales */
+.btn-main {
+  background-color: transparent;
+  color: var(--primary-color);
+  padding: 0.8rem 2.5rem;
+  font-size: 1rem;
+  border: 1px solid var(--primary-color);
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+}
+
+.btn-main:hover {
+  background-color: var(--primary-color);
+  color: #000;
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+}
+
+/* ====== 5. PÁGINA DE TEORÍA (TARJETAS) ====== */
+.info-container {
+  max-width: 1000px;
+  margin: 4rem auto;
+  padding: 0 1rem;
+}
+
+.card {
+  /* Fondo semitransparente para que se vea el fondo de ondas */
+  background: rgba(17, 17, 17, 0.7); 
+  backdrop-filter: blur(5px);
+  padding: 2rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  transition: border-color 0.3s;
+}
+
+.card:hover {
+  border-color: var(--primary-color);
+}
+
+.card h3 {
+  color: #FFF;
+  margin-bottom: 1rem;
+  font-weight: 400;
+}
+
+.card p, .card li {
+  color: #AAA;
+  font-weight: 300;
+}
+
+/* ====== 6. EDITOR INTERACTIVO (BARRA FLOTANTE) ====== */
+.floating-toolbar {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(10, 10, 10, 0.7);
+  backdrop-filter: blur(15px);
+  padding: 8px 15px;
+  border-radius: 50px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  z-index: 10;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background-color: #333;
+  margin: 0 10px;
+}
+
+.tool-btn {
+  background: transparent;
+  color: #888;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tool-btn:hover {
+  color: var(--text-color);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tool-btn.active {
+  color: #FFF;
+  background: var(--primary-color);
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.5);
+}
+
+.tool-btn.danger:hover {
+  color: #FFF;
+  background: rgba(229, 62, 62, 0.8);
+  box-shadow: 0 0 15px rgba(229, 62, 62, 0.4);
 }
