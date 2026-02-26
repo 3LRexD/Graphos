@@ -20,7 +20,7 @@ interface GraphEdge {
 interface GraphState {
     nodes: GraphNode[];
     edges: GraphEdge[];
-    nodeIdCounter: number;
+    nodeIdCounter: 1;
     selectedNode: GraphNode | null;
     isDragging: boolean;
     tempStartNode: GraphNode | null;
@@ -30,7 +30,8 @@ interface GraphState {
 
 export default function GraphEditor() {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
-    const [mode, setMode] = useState<string>('add'); // Modos: add, connect, move, edit, delete
+    const [mode, setMode] = useState<string>('add');
+    const [showMatrix, setShowMatrix] = useState<boolean>(false);
 
     const graphData = useRef<GraphState>({
         nodes: [],
@@ -75,9 +76,8 @@ export default function GraphEditor() {
             return null;
         };
 
-        // NUEVO: Función para detectar si hicimos clic sobre el número de una arista
         const getEdgeAt = (x: number, y: number): GraphEdge | null => {
-            const hitRadius = 15; // Área de clic alrededor del número
+            const hitRadius = 15; 
             
             for (let i = data.edges.length - 1; i >= 0; i--) {
                 const edge = data.edges[i];
@@ -85,11 +85,9 @@ export default function GraphEditor() {
                 let textY = 0;
 
                 if (edge.from === edge.to) {
-                    // Posición del texto del bucle
                     textX = edge.from.x;
                     textY = edge.from.y - NODE_RADIUS * 2.8;
                 } else {
-                    // Posición del texto de la curva
                     const dx = edge.to.x - edge.from.x;
                     const dy = edge.to.y - edge.from.y;
                     const dist = Math.hypot(dx, dy);
@@ -127,7 +125,6 @@ export default function GraphEditor() {
                 ctx.fillStyle = '#A855F7'; 
 
                 if (edge.from === edge.to) {
-                    // BUCLE
                     const node = edge.from;
                     const cp1x = node.x - NODE_RADIUS * 2;
                     const cp1y = node.y - NODE_RADIUS * 3.5;
@@ -155,7 +152,6 @@ export default function GraphEditor() {
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         
-                        // Fondo para el texto
                         ctx.fillStyle = 'rgba(10, 10, 10, 0.8)';
                         const textWidth = ctx.measureText(edge.weight).width;
                         ctx.fillRect(node.x - textWidth/2 - 4, node.y - NODE_RADIUS * 2.8 - 8, textWidth + 8, 16);
@@ -165,7 +161,6 @@ export default function GraphEditor() {
                     }
 
                 } else {
-                    // CURVA NORMAL
                     const dx = edge.to.x - edge.from.x;
                     const dy = edge.to.y - edge.from.y;
                     const dist = Math.hypot(dx, dy);
@@ -230,6 +225,7 @@ export default function GraphEditor() {
                 ctx.font = '400 14px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
+                // Usamos el ID visualmente como en tu imagen (1, 2, 3...)
                 ctx.fillText(node.label, node.x, node.y);
             });
         };
@@ -239,16 +235,16 @@ export default function GraphEditor() {
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
             
-            // Verificamos si tocamos un nodo, y si no, verificamos si tocamos una arista
             const clickedNode = getNodeAt(x, y);
             const clickedEdge = !clickedNode ? getEdgeAt(x, y) : null;
 
             switch (modeRef.current) {
                 case 'add':
                     if (!clickedNode) {
+                        const newId = data.nodeIdCounter++;
                         data.nodes.push({
-                            id: data.nodeIdCounter++,
-                            x, y, label: `q${data.nodeIdCounter - 1}`,
+                            id: newId,
+                            x, y, label: `${newId}`, // Etiqueta numérica limpia
                             color: '#111111'
                         });
                     }
@@ -260,15 +256,12 @@ export default function GraphEditor() {
                     if (clickedNode) data.tempStartNode = clickedNode;
                     break;
                 case 'edit':
-                    // Si clicamos un NODO
                     if (clickedNode) {
                         const newLabel = prompt("Nuevo nombre del nodo:", clickedNode.label);
                         if (newLabel) clickedNode.label = newLabel.substring(0, 4);
                     } 
-                    // Si clicamos una ARISTA (su número)
                     else if (clickedEdge) {
                         let weight = prompt("Ingrese el nuevo valor numérico:", clickedEdge.weight);
-                        
                         if (weight !== null) {
                             while (isNaN(Number(weight)) || weight.trim() === "") {
                                 weight = prompt("❌ Valor inválido. Por favor ingrese SOLO NÚMEROS:", clickedEdge.weight);
@@ -281,12 +274,10 @@ export default function GraphEditor() {
                     }
                     break;
                 case 'delete':
-                    // Si clicamos un NODO, lo borramos con sus conexiones
                     if (clickedNode) {
                         data.nodes = data.nodes.filter(n => n !== clickedNode);
                         data.edges = data.edges.filter(e => e.from !== clickedNode && e.to !== clickedNode);
                     } 
-                    // Si clicamos una ARISTA, borramos SOLO esa arista
                     else if (clickedEdge) {
                         data.edges = data.edges.filter(e => e !== clickedEdge);
                     }
@@ -320,13 +311,11 @@ export default function GraphEditor() {
                     
                     if (!exists) {
                         let weight = prompt("Ingrese el valor numérico o peso de la conexión:", "1");
-                        
                         if (weight !== null) {
                             while (isNaN(Number(weight)) || weight.trim() === "") {
                                 weight = prompt("❌ Valor inválido. Por favor ingrese SOLO NÚMEROS:", "1");
                                 if (weight === null) break; 
                             }
-                            
                             if (weight !== null) {
                                 data.edges.push({ 
                                     from: data.tempStartNode, 
@@ -361,6 +350,7 @@ export default function GraphEditor() {
         if(confirm('¿Borrar todo?')) {
             graphData.current.nodes = [];
             graphData.current.edges = [];
+            graphData.current.nodeIdCounter = 1; // Reiniciamos el contador
             
             const canvas = canvasRef.current;
             if (canvas) {
@@ -368,6 +358,117 @@ export default function GraphEditor() {
                 if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
             }
         }
+    };
+
+    // FUNCIÓN MEJORADA: Calcula sumas y renderiza la tabla igual a la imagen
+    // FUNCIÓN ÚNICA Y ACADÉMICA: Calcula grados y renderiza la tabla minimalista
+    const renderAdjacencyMatrix = () => {
+        const { nodes, edges } = graphData.current;
+        const n = nodes.length;
+
+        if (n === 0) {
+            return <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center', color: '#666' }}>El lienzo está vacío. Crea nodos para analizar la matriz.</div>;
+        }
+
+        const sortedNodes = [...nodes].sort((a, b) => a.id - b.id);
+        const matrix: number[][] = Array(n).fill(null).map(() => Array(n).fill(0));
+        
+        const nodeIndexMap = new Map();
+        sortedNodes.forEach((node, index) => nodeIndexMap.set(node.id, index));
+
+        edges.forEach(edge => {
+            const fromIdx = nodeIndexMap.get(edge.from.id);
+            const toIdx = nodeIndexMap.get(edge.to.id);
+            if (fromIdx !== undefined && toIdx !== undefined) {
+                matrix[fromIdx][toIdx] = parseFloat(edge.weight) || 0;
+            }
+        });
+
+        // Calculamos los Grados (Out-degree y In-degree)
+        const outDegree = matrix.map(row => row.reduce((a, b) => a + b, 0));
+        const inDegree = matrix[0].map((_, i) => matrix.map(row => row[i]).reduce((a, b) => a + b, 0));
+
+        const activeEmitters = outDegree.filter(s => s > 0).length;
+        const activeReceivers = inDegree.filter(s => s > 0).length;
+
+        const cellStyle = { width: '45px', height: '45px', textAlign: 'center' as const, fontSize: '15px', fontWeight: '400' };
+
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                <table style={{ borderCollapse: 'collapse', color: '#E0E0E0', userSelect: 'none', width: '100%' }}>
+                    <tbody>
+                        {/* Cabecera superior (Destinos) */}
+                        <tr style={{ borderBottom: '1px solid #333' }}>
+                            <td style={{ ...cellStyle, color: '#666', fontSize: '12px' }}>Origen \ Destino</td>
+                            {sortedNodes.map(node => (
+                                <td key={`h-${node.id}`} style={{ ...cellStyle, color: '#D8B4FE', fontWeight: 'bold' }}>{node.label}</td>
+                            ))}
+                            {/* Grado de Salida */}
+                            <td style={{ ...cellStyle, color: '#A855F7', borderLeft: '1px dashed #333', fontSize: '12px', fontWeight: 'bold' }}>Grado Salida</td>
+                        </tr>
+
+                        {/* Filas de la matriz */}
+                        {sortedNodes.map((node, i) => (
+                            <tr key={`r-${node.id}`} style={{ borderBottom: '1px solid #1A1A1A' }}>
+                                <td style={{ ...cellStyle, color: '#D8B4FE', fontWeight: 'bold' }}>{node.label}</td>
+                                
+                                {matrix[i].map((val, j) => (
+                                    <td key={`c-${i}-${j}`} style={{
+                                        ...cellStyle,
+                                        backgroundColor: val === 0 ? 'transparent' : 'rgba(168, 85, 247, 0.1)',
+                                        color: val === 0 ? '#444' : '#FFF',
+                                        borderRadius: '4px' // Bordes redondeados sutiles en los números activos
+                                    }}>
+                                        {val}
+                                    </td>
+                                ))}
+                                
+                                {/* Total Grado Salida */}
+                                <td style={{
+                                    ...cellStyle,
+                                    borderLeft: '1px dashed #333',
+                                    color: outDegree[i] > 0 ? '#A855F7' : '#555',
+                                    fontWeight: outDegree[i] > 0 ? 'bold' : 'normal'
+                                }}>
+                                    {outDegree[i]}
+                                </td>
+                            </tr>
+                        ))}
+
+                        {/* Fila inferior (Grado de Entrada) */}
+                        <tr>
+                            <td style={{ ...cellStyle, color: '#A855F7', fontSize: '12px', fontWeight: 'bold' }}>Grado Entrada</td>
+                            {inDegree.map((sum, j) => (
+                                <td key={`s-${j}`} style={{
+                                    ...cellStyle,
+                                    color: sum > 0 ? '#A855F7' : '#555',
+                                    fontWeight: sum > 0 ? 'bold' : 'normal'
+                                }}>
+                                    {sum}
+                                </td>
+                            ))}
+                            <td style={{ ...cellStyle, borderLeft: '1px dashed #333' }}></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                {/* Footer Académico */}
+                <div style={{ marginTop: '3rem', width: '100%', padding: '1rem', background: '#0A0A0A', borderRadius: '8px', border: '1px solid #222' }}>
+                    <h4 style={{ color: '#D8B4FE', marginBottom: '0.5rem', fontSize: '0.9rem', textAlign: 'center' }}>Análisis Topológico</h4>
+                    <div style={{ display: 'flex', justifyContent: 'space-around', color: '#888', fontSize: '13px' }}>
+                        <div style={{ textAlign: 'center' }}>
+                            <p>Nodos Emisores</p>
+                            <strong style={{ color: '#FFF', fontSize: '1.2rem' }}>{activeEmitters} <span style={{fontSize: '0.9rem', color: '#555'}}>/ {n}</span></strong>
+                        </div>
+                        <div style={{ width: '1px', background: '#333' }}></div>
+                        <div style={{ textAlign: 'center' }}>
+                            <p>Nodos Receptores</p>
+                            <strong style={{ color: '#FFF', fontSize: '1.2rem' }}>{activeReceivers} <span style={{fontSize: '0.9rem', color: '#555'}}>/ {n}</span></strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -382,9 +483,49 @@ export default function GraphEditor() {
                 
                 <div className="toolbar-divider"></div>
                 
-                {/* Cambié el valor del modo de 'deleteNode' a 'delete' */}
                 <button className={`tool-btn ${mode === 'delete' ? 'active' : ''}`} onClick={() => setMode('delete')}>❌ Borrar</button>
                 <button className="tool-btn danger" onClick={clearCanvas}>🗑️ Limpiar</button>
+                
+                <div className="toolbar-divider"></div>
+
+                <button className="tool-btn" style={{ color: '#A855F7', borderColor: '#A855F7' }} onClick={() => setShowMatrix(true)}>
+                    📊 Matriz
+                </button>
+            </div>
+
+            {showMatrix && (
+                <div 
+                    onClick={() => setShowMatrix(false)}
+                    style={{
+                        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(2px)', zIndex: 40
+                    }}
+                />
+            )}
+
+            <div style={{
+                position: 'absolute', top: 0, 
+                right: showMatrix ? '0' : '-450px', 
+                width: '450px', height: '100%',
+                backgroundColor: '#050505', // Fondo negro profundo (coincide con tu tema)
+                borderLeft: '1px solid #222',
+                boxShadow: '-10px 0 40px rgba(168, 85, 247, 0.1)', // Sombra morada sutil
+                transition: 'right 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)', // Animación más fluida
+                zIndex: 50,
+                display: 'flex', flexDirection: 'column',
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.5rem', borderBottom: '1px solid #222' }}>
+                    <h2 style={{ color: '#FFF', fontSize: '1.2rem', fontWeight: 300, letterSpacing: '1px' }}>Matriz de Adyacencia</h2>
+                    <button onClick={() => setShowMatrix(false)} style={{
+                        background: 'transparent', border: 'none', color: '#888', fontSize: '1.5rem', cursor: 'pointer', transition: 'color 0.2s'
+                    }} onMouseOver={(e) => e.currentTarget.style.color = '#A855F7'} onMouseOut={(e) => e.currentTarget.style.color = '#888'}>
+                        ✕
+                    </button>
+                </div>
+                
+                <div style={{ padding: '2rem', flexGrow: 1, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
+                    {renderAdjacencyMatrix()}
+                </div>
             </div>
         </div>
     );
