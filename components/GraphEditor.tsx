@@ -20,7 +20,7 @@ interface GraphEdge {
 interface GraphState {
     nodes: GraphNode[];
     edges: GraphEdge[];
-    nodeIdCounter: 1;
+    nodeIdCounter: number;
     selectedNode: GraphNode | null;
     isDragging: boolean;
     tempStartNode: GraphNode | null;
@@ -28,10 +28,27 @@ interface GraphState {
     mouseY: number;
 }
 
+// Interfaz para controlar nuestra ventana emergente bonita
+interface PromptConfig {
+    isOpen: boolean;
+    title: string;
+    value: string;
+    placeholder: string;
+    error: string;
+    onConfirm: ((val: string) => void) | null;
+    onCancel: (() => void) | null;
+}
+
 export default function GraphEditor() {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const [mode, setMode] = useState<string>('add');
     const [showMatrix, setShowMatrix] = useState<boolean>(false);
+    const [showGuide, setShowGuide] = useState<boolean>(false); // Estado para la mini guía
+
+    // Estado para el modal de edición personalizado
+    const [customPrompt, setCustomPrompt] = useState<PromptConfig>({
+        isOpen: false, title: '', value: '', placeholder: '', error: '', onConfirm: null, onCancel: null
+    });
 
     const graphData = useRef<GraphState>({
         nodes: [],
@@ -78,11 +95,9 @@ export default function GraphEditor() {
 
         const getEdgeAt = (x: number, y: number): GraphEdge | null => {
             const hitRadius = 15; 
-            
             for (let i = data.edges.length - 1; i >= 0; i--) {
                 const edge = data.edges[i];
-                let textX = 0;
-                let textY = 0;
+                let textX = 0, textY = 0;
 
                 if (edge.from === edge.to) {
                     textX = edge.from.x;
@@ -94,14 +109,11 @@ export default function GraphEditor() {
                     const nx = -dy / dist;
                     const ny = dx / dist;
                     const curveOffset = 30;
-                    
                     textX = edge.from.x + dx/2 + nx * curveOffset;
                     textY = edge.from.y + dy/2 + ny * curveOffset;
                 }
 
-                if (getDistance(x, y, textX, textY) <= hitRadius) {
-                    return edge;
-                }
+                if (getDistance(x, y, textX, textY) <= hitRadius) return edge;
             }
             return null;
         };
@@ -151,11 +163,9 @@ export default function GraphEditor() {
                         ctx.font = 'bold 12px Arial';
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
-                        
                         ctx.fillStyle = 'rgba(10, 10, 10, 0.8)';
                         const textWidth = ctx.measureText(edge.weight).width;
                         ctx.fillRect(node.x - textWidth/2 - 4, node.y - NODE_RADIUS * 2.8 - 8, textWidth + 8, 16);
-
                         ctx.fillStyle = '#A855F7';
                         ctx.fillText(edge.weight, node.x, node.y - NODE_RADIUS * 2.8);
                     }
@@ -190,11 +200,9 @@ export default function GraphEditor() {
                         ctx.font = 'bold 12px Arial';
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
-                        
                         ctx.fillStyle = 'rgba(10, 10, 10, 0.8)';
                         const textWidth = ctx.measureText(edge.weight).width;
                         ctx.fillRect(cx - textWidth/2 - 4, cy - 8, textWidth + 8, 16);
-                        
                         ctx.fillStyle = '#A855F7';
                         ctx.fillText(edge.weight, cx, cy);
                     }
@@ -225,7 +233,6 @@ export default function GraphEditor() {
                 ctx.font = '400 14px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                // Usamos el ID visualmente como en tu imagen (1, 2, 3...)
                 ctx.fillText(node.label, node.x, node.y);
             });
         };
@@ -242,11 +249,7 @@ export default function GraphEditor() {
                 case 'add':
                     if (!clickedNode) {
                         const newId = data.nodeIdCounter++;
-                        data.nodes.push({
-                            id: newId,
-                            x, y, label: `${newId}`, // Etiqueta numérica limpia
-                            color: '#111111'
-                        });
+                        data.nodes.push({ id: newId, x, y, label: `${newId}`, color: '#111111' });
                     }
                     break;
                 case 'move':
@@ -257,20 +260,40 @@ export default function GraphEditor() {
                     break;
                 case 'edit':
                     if (clickedNode) {
-                        const newLabel = prompt("Nuevo nombre del nodo:", clickedNode.label);
-                        if (newLabel) clickedNode.label = newLabel.substring(0, 4);
+                        // REEMPLAZO: Custom Prompt para el Nodo
+                        setCustomPrompt({
+                            isOpen: true,
+                            title: "Editar Nombre del Nodo",
+                            value: clickedNode.label,
+                            placeholder: "Ej: q1, A, Inicio",
+                            error: "",
+                            onConfirm: (val) => {
+                                clickedNode.label = val.substring(0, 4);
+                                setCustomPrompt(prev => ({ ...prev, isOpen: false }));
+                                draw();
+                            },
+                            onCancel: () => setCustomPrompt(prev => ({ ...prev, isOpen: false }))
+                        });
                     } 
                     else if (clickedEdge) {
-                        let weight = prompt("Ingrese el nuevo valor numérico:", clickedEdge.weight);
-                        if (weight !== null) {
-                            while (isNaN(Number(weight)) || weight.trim() === "") {
-                                weight = prompt("❌ Valor inválido. Por favor ingrese SOLO NÚMEROS:", clickedEdge.weight);
-                                if (weight === null) break; 
-                            }
-                            if (weight !== null) {
-                                clickedEdge.weight = weight.trim();
-                            }
-                        }
+                        // REEMPLAZO: Custom Prompt para la Arista
+                        setCustomPrompt({
+                            isOpen: true,
+                            title: "Editar Peso de la Conexión",
+                            value: clickedEdge.weight,
+                            placeholder: "Solo números (Ej: 10)",
+                            error: "",
+                            onConfirm: (val) => {
+                                if (isNaN(Number(val)) || val.trim() === "") {
+                                    setCustomPrompt(prev => ({ ...prev, error: "❌ Por favor ingrese SOLO NÚMEROS válidos." }));
+                                    return; // Evita que se cierre la ventana
+                                }
+                                clickedEdge.weight = val.trim();
+                                setCustomPrompt(prev => ({ ...prev, isOpen: false }));
+                                draw();
+                            },
+                            onCancel: () => setCustomPrompt(prev => ({ ...prev, isOpen: false }))
+                        });
                     }
                     break;
                 case 'delete':
@@ -310,20 +333,31 @@ export default function GraphEditor() {
                     const exists = data.edges.some(e => e.from === data.tempStartNode && e.to === targetNode);
                     
                     if (!exists) {
-                        let weight = prompt("Ingrese el valor numérico o peso de la conexión:", "1");
-                        if (weight !== null) {
-                            while (isNaN(Number(weight)) || weight.trim() === "") {
-                                weight = prompt("❌ Valor inválido. Por favor ingrese SOLO NÚMEROS:", "1");
-                                if (weight === null) break; 
+                        // Guardamos las referencias actuales para usarlas cuando el modal se apruebe
+                        const fromNode = data.tempStartNode;
+                        const toNode = targetNode;
+
+                        // REEMPLAZO: Custom Prompt para Nueva Conexión
+                        setCustomPrompt({
+                            isOpen: true,
+                            title: "Peso de la Nueva Conexión",
+                            value: "1",
+                            placeholder: "Solo números (Ej: 1, 5, 10)",
+                            error: "",
+                            onConfirm: (val) => {
+                                if (isNaN(Number(val)) || val.trim() === "") {
+                                    setCustomPrompt(prev => ({ ...prev, error: "❌ Por favor ingrese SOLO NÚMEROS válidos." }));
+                                    return; 
+                                }
+                                data.edges.push({ from: fromNode, to: toNode, weight: val.trim() });
+                                setCustomPrompt(prev => ({ ...prev, isOpen: false }));
+                                draw();
+                            },
+                            onCancel: () => {
+                                setCustomPrompt(prev => ({ ...prev, isOpen: false }));
+                                draw();
                             }
-                            if (weight !== null) {
-                                data.edges.push({ 
-                                    from: data.tempStartNode, 
-                                    to: targetNode, 
-                                    weight: weight.trim() 
-                                });
-                            }
-                        }
+                        });
                     }
                 }
                 data.tempStartNode = null;
@@ -347,10 +381,10 @@ export default function GraphEditor() {
     }, []); 
 
     const clearCanvas = () => {
-        if(confirm('¿Borrar todo?')) {
+        if(confirm('¿Seguro que deseas borrar el lienzo completo?')) {
             graphData.current.nodes = [];
             graphData.current.edges = [];
-            graphData.current.nodeIdCounter = 1; // Reiniciamos el contador
+            graphData.current.nodeIdCounter = 1; 
             
             const canvas = canvasRef.current;
             if (canvas) {
@@ -360,15 +394,52 @@ export default function GraphEditor() {
         }
     };
 
-    // FUNCIÓN MEJORADA: Calcula sumas y renderiza la tabla igual a la imagen
-    // FUNCIÓN ÚNICA Y ACADÉMICA: Calcula grados y renderiza la tabla minimalista
+    // Funciones de Exportar e Importar (Se mantienen igual)
+    const handleExport = () => {
+        const data = graphData.current;
+        const exportObj = {
+            nodes: data.nodes,
+            edges: data.edges.map(e => ({ from: e.from.id, to: e.to.id, weight: e.weight })),
+            nodeIdCounter: data.nodeIdCounter
+        };
+        const dataStr = JSON.stringify(exportObj, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url; link.download = "mi-grafo-topologico.json"; link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const parsedData = JSON.parse(event.target?.result as string);
+                if (parsedData.nodes && parsedData.edges) {
+                    const newNodes = parsedData.nodes;
+                    const newEdges = parsedData.edges.map((e: any) => ({
+                        from: newNodes.find((n: any) => n.id === e.from),
+                        to: newNodes.find((n: any) => n.id === e.to),
+                        weight: e.weight
+                    })).filter((e: any) => e.from && e.to); 
+                    graphData.current.nodes = newNodes;
+                    graphData.current.edges = newEdges;
+                    graphData.current.nodeIdCounter = parsedData.nodeIdCounter || 1;
+                    window.dispatchEvent(new Event('resize'));
+                } else alert("El archivo JSON no tiene un formato válido.");
+            } catch (error) { alert("Error al leer el archivo."); }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; 
+    };
+
     const renderAdjacencyMatrix = () => {
         const { nodes, edges } = graphData.current;
         const n = nodes.length;
 
-        if (n === 0) {
-            return <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center', color: '#666' }}>El lienzo está vacío. Crea nodos para analizar la matriz.</div>;
-        }
+        if (n === 0) return <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center', color: '#666' }}>El lienzo está vacío.</div>;
 
         const sortedNodes = [...nodes].sort((a, b) => a.id - b.id);
         const matrix: number[][] = Array(n).fill(null).map(() => Array(n).fill(0));
@@ -379,12 +450,9 @@ export default function GraphEditor() {
         edges.forEach(edge => {
             const fromIdx = nodeIndexMap.get(edge.from.id);
             const toIdx = nodeIndexMap.get(edge.to.id);
-            if (fromIdx !== undefined && toIdx !== undefined) {
-                matrix[fromIdx][toIdx] = parseFloat(edge.weight) || 0;
-            }
+            if (fromIdx !== undefined && toIdx !== undefined) matrix[fromIdx][toIdx] = parseFloat(edge.weight) || 0;
         });
 
-        // Calculamos los Grados (Out-degree y In-degree)
         const outDegree = matrix.map(row => row.reduce((a, b) => a + b, 0));
         const inDegree = matrix[0].map((_, i) => matrix.map(row => row[i]).reduce((a, b) => a + b, 0));
 
@@ -397,53 +465,28 @@ export default function GraphEditor() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                 <table style={{ borderCollapse: 'collapse', color: '#E0E0E0', userSelect: 'none', width: '100%' }}>
                     <tbody>
-                        {/* Cabecera superior (Destinos) */}
                         <tr style={{ borderBottom: '1px solid #333' }}>
                             <td style={{ ...cellStyle, color: '#666', fontSize: '12px' }}>Origen \ Destino</td>
-                            {sortedNodes.map(node => (
-                                <td key={`h-${node.id}`} style={{ ...cellStyle, color: '#D8B4FE', fontWeight: 'bold' }}>{node.label}</td>
-                            ))}
-                            {/* Grado de Salida */}
+                            {sortedNodes.map(node => <td key={`h-${node.id}`} style={{ ...cellStyle, color: '#D8B4FE', fontWeight: 'bold' }}>{node.label}</td>)}
                             <td style={{ ...cellStyle, color: '#A855F7', borderLeft: '1px dashed #333', fontSize: '12px', fontWeight: 'bold' }}>Grado Salida</td>
                         </tr>
-
-                        {/* Filas de la matriz */}
                         {sortedNodes.map((node, i) => (
                             <tr key={`r-${node.id}`} style={{ borderBottom: '1px solid #1A1A1A' }}>
                                 <td style={{ ...cellStyle, color: '#D8B4FE', fontWeight: 'bold' }}>{node.label}</td>
-                                
                                 {matrix[i].map((val, j) => (
-                                    <td key={`c-${i}-${j}`} style={{
-                                        ...cellStyle,
-                                        backgroundColor: val === 0 ? 'transparent' : 'rgba(168, 85, 247, 0.1)',
-                                        color: val === 0 ? '#444' : '#FFF',
-                                        borderRadius: '4px' // Bordes redondeados sutiles en los números activos
-                                    }}>
+                                    <td key={`c-${i}-${j}`} style={{ ...cellStyle, backgroundColor: val === 0 ? 'transparent' : 'rgba(168, 85, 247, 0.1)', color: val === 0 ? '#444' : '#FFF', borderRadius: '4px' }}>
                                         {val}
                                     </td>
                                 ))}
-                                
-                                {/* Total Grado Salida */}
-                                <td style={{
-                                    ...cellStyle,
-                                    borderLeft: '1px dashed #333',
-                                    color: outDegree[i] > 0 ? '#A855F7' : '#555',
-                                    fontWeight: outDegree[i] > 0 ? 'bold' : 'normal'
-                                }}>
+                                <td style={{ ...cellStyle, borderLeft: '1px dashed #333', color: outDegree[i] > 0 ? '#A855F7' : '#555', fontWeight: outDegree[i] > 0 ? 'bold' : 'normal' }}>
                                     {outDegree[i]}
                                 </td>
                             </tr>
                         ))}
-
-                        {/* Fila inferior (Grado de Entrada) */}
                         <tr>
                             <td style={{ ...cellStyle, color: '#A855F7', fontSize: '12px', fontWeight: 'bold' }}>Grado Entrada</td>
                             {inDegree.map((sum, j) => (
-                                <td key={`s-${j}`} style={{
-                                    ...cellStyle,
-                                    color: sum > 0 ? '#A855F7' : '#555',
-                                    fontWeight: sum > 0 ? 'bold' : 'normal'
-                                }}>
+                                <td key={`s-${j}`} style={{ ...cellStyle, color: sum > 0 ? '#A855F7' : '#555', fontWeight: sum > 0 ? 'bold' : 'normal' }}>
                                     {sum}
                                 </td>
                             ))}
@@ -451,20 +494,12 @@ export default function GraphEditor() {
                         </tr>
                     </tbody>
                 </table>
-
-                {/* Footer Académico */}
                 <div style={{ marginTop: '3rem', width: '100%', padding: '1rem', background: '#0A0A0A', borderRadius: '8px', border: '1px solid #222' }}>
                     <h4 style={{ color: '#D8B4FE', marginBottom: '0.5rem', fontSize: '0.9rem', textAlign: 'center' }}>Análisis Topológico</h4>
                     <div style={{ display: 'flex', justifyContent: 'space-around', color: '#888', fontSize: '13px' }}>
-                        <div style={{ textAlign: 'center' }}>
-                            <p>Nodos Emisores</p>
-                            <strong style={{ color: '#FFF', fontSize: '1.2rem' }}>{activeEmitters} <span style={{fontSize: '0.9rem', color: '#555'}}>/ {n}</span></strong>
-                        </div>
+                        <div style={{ textAlign: 'center' }}><p>Nodos Emisores</p><strong style={{ color: '#FFF', fontSize: '1.2rem' }}>{activeEmitters} <span style={{fontSize: '0.9rem', color: '#555'}}>/ {n}</span></strong></div>
                         <div style={{ width: '1px', background: '#333' }}></div>
-                        <div style={{ textAlign: 'center' }}>
-                            <p>Nodos Receptores</p>
-                            <strong style={{ color: '#FFF', fontSize: '1.2rem' }}>{activeReceivers} <span style={{fontSize: '0.9rem', color: '#555'}}>/ {n}</span></strong>
-                        </div>
+                        <div style={{ textAlign: 'center' }}><p>Nodos Receptores</p><strong style={{ color: '#FFF', fontSize: '1.2rem' }}>{activeReceivers} <span style={{fontSize: '0.9rem', color: '#555'}}>/ {n}</span></strong></div>
                     </div>
                 </div>
             </div>
@@ -473,56 +508,128 @@ export default function GraphEditor() {
 
     return (
         <div style={{ position: 'relative', width: '100%', height: 'calc(100vh - 80px)', overflow: 'hidden' }}>
+            {/* CANVAS PRINCIPAL */}
             <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block', cursor: 'crosshair' }}></canvas>
             
+            {/* ====== BOTONES SUPERIORES (Importar/Exportar y Guía) ====== */}
+            <div style={{ position: 'absolute', top: '20px', left: '20px', display: 'flex', gap: '10px', zIndex: 10 }}>
+                <label className="tool-btn" style={{ background: 'rgba(10,10,10,0.7)', backdropFilter: 'blur(10px)', border: '1px solid #333', cursor: 'pointer' }}>
+                    # Importar
+                    <input type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
+                </label>
+                <button className="tool-btn" style={{ background: 'rgba(10,10,10,0.7)', backdropFilter: 'blur(10px)', border: '1px solid #333' }} onClick={handleExport}>
+                    # Exportar
+                </button>
+            </div>
+
+            <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 10 }}>
+                <button className="tool-btn" style={{ background: 'rgba(10,10,10,0.8)', color: '#D8B4FE', border: '1px solid #D8B4FE' }} onClick={() => setShowGuide(true)}>
+                    # Guía Rápida
+                </button>
+            </div>
+
+            {/* BARRA DE HERRAMIENTAS FLOTANTE INFERIOR */}
             <div className="floating-toolbar">
                 <button className={`tool-btn ${mode === 'add' ? 'active' : ''}`} onClick={() => setMode('add')}>➕ Nodo</button>
                 <button className={`tool-btn ${mode === 'connect' ? 'active' : ''}`} onClick={() => setMode('connect')}>🔗 Conectar</button>
                 <button className={`tool-btn ${mode === 'move' ? 'active' : ''}`} onClick={() => setMode('move')}>🖐️ Mover</button>
                 <button className={`tool-btn ${mode === 'edit' ? 'active' : ''}`} onClick={() => setMode('edit')}>✏️ Editar</button>
-                
                 <div className="toolbar-divider"></div>
-                
                 <button className={`tool-btn ${mode === 'delete' ? 'active' : ''}`} onClick={() => setMode('delete')}>❌ Borrar</button>
                 <button className="tool-btn danger" onClick={clearCanvas}>🗑️ Limpiar</button>
-                
                 <div className="toolbar-divider"></div>
-
-                <button className="tool-btn" style={{ color: '#A855F7', borderColor: '#A855F7' }} onClick={() => setShowMatrix(true)}>
-                    📊 Matriz
-                </button>
+                <button className="tool-btn" style={{ color: '#A855F7', borderColor: '#A855F7' }} onClick={() => setShowMatrix(true)}>📊 Matriz</button>
             </div>
 
-            {showMatrix && (
-                <div 
-                    onClick={() => setShowMatrix(false)}
-                    style={{
-                        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(2px)', zIndex: 40
-                    }}
-                />
+            {/* ====== 1. MODAL: VENTANA EMERGENTE PERSONALIZADA (EDICIÓN Y PESOS) ====== */}
+            {customPrompt.isOpen && (
+                <div style={{
+                    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                    backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+                    display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100
+                }}>
+                    <div style={{
+                        background: '#0A0A0A', padding: '2rem', borderRadius: '8px',
+                        border: '1px solid #A855F7', boxShadow: '0 0 30px rgba(168, 85, 247, 0.2)',
+                        width: '350px', textAlign: 'center'
+                    }}>
+                        <h3 style={{ color: '#FFF', marginBottom: '1rem', fontWeight: 400 }}>{customPrompt.title}</h3>
+                        <input 
+                            autoFocus
+                            type="text" 
+                            value={customPrompt.value}
+                            placeholder={customPrompt.placeholder}
+                            onChange={(e) => setCustomPrompt({...customPrompt, value: e.target.value})}
+                            onKeyDown={(e) => e.key === 'Enter' && customPrompt.onConfirm?.(customPrompt.value)}
+                            style={{
+                                width: '100%', padding: '10px', background: '#1A1A1A', color: '#FFF',
+                                border: '1px solid #333', borderRadius: '4px', marginBottom: '10px',
+                                outline: 'none', textAlign: 'center', fontSize: '1rem'
+                            }}
+                        />
+                        {customPrompt.error && <p style={{ color: '#E53E3E', fontSize: '0.85rem', marginBottom: '10px' }}>{customPrompt.error}</p>}
+                        
+                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '1rem' }}>
+                            <button onClick={() => customPrompt.onCancel?.()} style={{
+                                padding: '8px 20px', background: 'transparent', color: '#888',
+                                border: '1px solid #333', borderRadius: '4px', cursor: 'pointer'
+                            }}>Cancelar</button>
+                            <button onClick={() => customPrompt.onConfirm?.(customPrompt.value)} style={{
+                                padding: '8px 20px', background: '#A855F7', color: '#FFF',
+                                border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'
+                            }}>Guardar</button>
+                        </div>
+                    </div>
+                </div>
             )}
 
+            {/* ====== 2. MODAL: GUÍA RÁPIDA ====== */}
+            {showGuide && (
+                <div style={{
+                    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                    backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+                    display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 60
+                }}>
+                    <div style={{
+                        background: '#111', padding: '2.5rem', borderRadius: '8px', border: '1px solid #333',
+                        maxWidth: '500px', width: '90%', boxShadow: '0 10px 40px rgba(0,0,0,0.8)'
+                    }}>
+                        <h2 style={{ color: '#A855F7', marginBottom: '1.5rem', textAlign: 'center', fontWeight: 400 }}>📖 Guía del Editor</h2>
+                        
+                        <ul style={{ listStyle: 'none', padding: 0, color: '#CCC', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                            <li><strong style={{ color: '#FFF' }}>➕ Nodo:</strong> Haz clic en cualquier parte vacía del lienzo para crear un estado.</li>
+                            <li><strong style={{ color: '#FFF' }}>🔗 Conectar:</strong> Haz clic en un nodo de origen y luego en uno de destino. Te pedirá el peso. <br/><span style={{fontSize:'0.85rem', color:'#888'}}>(Puedes hacer clic en el mismo nodo para crear un Bucle/Estado Absorbente).</span></li>
+                            <li><strong style={{ color: '#FFF' }}>🖐️ Mover:</strong> Mantén presionado un nodo y arrástralo para organizar tu grafo.</li>
+                            <li><strong style={{ color: '#FFF' }}>✏️ Editar:</strong> Haz clic en un nodo para cambiar su nombre, o en el número de una flecha para cambiar su peso.</li>
+                            <li><strong style={{ color: '#FFF' }}>❌ Borrar:</strong> Toca un nodo para borrarlo (y sus flechas) o toca el número de una flecha para borrar solo esa conexión.</li>
+                        </ul>
+
+                        <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+                            <button onClick={() => setShowGuide(false)} style={{
+                                padding: '10px 30px', background: '#A855F7', color: '#FFF',
+                                border: 'none', borderRadius: '50px', cursor: 'pointer', fontSize: '1rem'
+                            }}>¡Entendido!</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ====== 3. MODAL: MATRIZ DE ADYACENCIA (Mantenido igual) ====== */}
+            {showMatrix && (
+                <div onClick={() => setShowMatrix(false)} style={{
+                    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(2px)', zIndex: 40
+                }}/>
+            )}
             <div style={{
-                position: 'absolute', top: 0, 
-                right: showMatrix ? '0' : '-450px', 
-                width: '450px', height: '100%',
-                backgroundColor: '#050505', // Fondo negro profundo (coincide con tu tema)
-                borderLeft: '1px solid #222',
-                boxShadow: '-10px 0 40px rgba(168, 85, 247, 0.1)', // Sombra morada sutil
-                transition: 'right 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)', // Animación más fluida
-                zIndex: 50,
-                display: 'flex', flexDirection: 'column',
+                position: 'absolute', top: 0, right: showMatrix ? '0' : '-450px', width: '450px', height: '100%',
+                backgroundColor: '#050505', borderLeft: '1px solid #222', boxShadow: '-10px 0 40px rgba(168, 85, 247, 0.1)', 
+                transition: 'right 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)', zIndex: 50, display: 'flex', flexDirection: 'column',
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.5rem', borderBottom: '1px solid #222' }}>
                     <h2 style={{ color: '#FFF', fontSize: '1.2rem', fontWeight: 300, letterSpacing: '1px' }}>Matriz de Adyacencia</h2>
-                    <button onClick={() => setShowMatrix(false)} style={{
-                        background: 'transparent', border: 'none', color: '#888', fontSize: '1.5rem', cursor: 'pointer', transition: 'color 0.2s'
-                    }} onMouseOver={(e) => e.currentTarget.style.color = '#A855F7'} onMouseOut={(e) => e.currentTarget.style.color = '#888'}>
-                        ✕
-                    </button>
+                    <button onClick={() => setShowMatrix(false)} style={{ background: 'transparent', border: 'none', color: '#888', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
                 </div>
-                
                 <div style={{ padding: '2rem', flexGrow: 1, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
                     {renderAdjacencyMatrix()}
                 </div>
