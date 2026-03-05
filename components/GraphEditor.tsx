@@ -395,24 +395,51 @@ export default function GraphEditor() {
     };
 
     // Funciones de Exportar e Importar (Se mantienen igual)
+   // ====== FUNCIONES DE EXPORTAR E IMPORTAR MEJORADAS ======
     const handleExport = () => {
-        const data = graphData.current;
-        const exportObj = {
-            nodes: data.nodes,
-            edges: data.edges.map(e => ({ from: e.from.id, to: e.to.id, weight: e.weight })),
-            nodeIdCounter: data.nodeIdCounter
-        };
-        const dataStr = JSON.stringify(exportObj, null, 2);
-        const blob = new Blob([dataStr], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url; link.download = "mi-grafo-topologico.json"; link.click();
-        URL.revokeObjectURL(url);
+        // Usamos nuestro modal personalizado para pedir el nombre
+        setCustomPrompt({
+            isOpen: true,
+            title: "Guardar Grafo",
+            value: "mi-grafo",
+            placeholder: "Nombre del archivo (ej: tarea-grafos)",
+            error: "",
+            onConfirm: (fileName) => {
+                // Validamos que no deje el nombre en blanco
+                if (!fileName || fileName.trim() === "") {
+                    setCustomPrompt(prev => ({ ...prev, error: "❌ Por favor ingrese un nombre para el archivo." }));
+                    return; 
+                }
+
+                const data = graphData.current;
+                const exportObj = {
+                    nodes: data.nodes,
+                    edges: data.edges.map(e => ({ from: e.from.id, to: e.to.id, weight: e.weight })),
+                    nodeIdCounter: data.nodeIdCounter
+                };
+                
+                const dataStr = JSON.stringify(exportObj, null, 2);
+                const blob = new Blob([dataStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url; 
+                
+                // Aseguramos que termine siempre en .json aunque el usuario olvide ponerlo
+                const safeName = fileName.endsWith('.json') ? fileName : `${fileName}.json`;
+                link.download = safeName; 
+                link.click();
+                
+                URL.revokeObjectURL(url);
+                setCustomPrompt(prev => ({ ...prev, isOpen: false })); // Cerramos la ventanita
+            },
+            onCancel: () => setCustomPrompt(prev => ({ ...prev, isOpen: false }))
+        });
     };
 
     const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
@@ -424,15 +451,21 @@ export default function GraphEditor() {
                         to: newNodes.find((n: any) => n.id === e.to),
                         weight: e.weight
                     })).filter((e: any) => e.from && e.to); 
+                    
                     graphData.current.nodes = newNodes;
                     graphData.current.edges = newEdges;
                     graphData.current.nodeIdCounter = parsedData.nodeIdCounter || 1;
+                    
                     window.dispatchEvent(new Event('resize'));
-                } else alert("El archivo JSON no tiene un formato válido.");
-            } catch (error) { alert("Error al leer el archivo."); }
+                } else {
+                    alert("El archivo JSON no tiene un formato válido para este editor.");
+                }
+            } catch (error) { 
+                alert("Error al leer el archivo. Asegúrate de que sea un JSON válido."); 
+            }
         };
         reader.readAsText(file);
-        e.target.value = ''; 
+        e.target.value = ''; // Permite volver a importar el mismo archivo si haces cambios
     };
 
     // FUNCIÓN ÚNICA Y ACADÉMICA: Calcula grados, conexiones y renderiza la tabla minimalista
