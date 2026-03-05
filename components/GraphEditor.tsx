@@ -435,11 +435,14 @@ export default function GraphEditor() {
         e.target.value = ''; 
     };
 
+    // FUNCIÓN ÚNICA Y ACADÉMICA: Calcula grados, conexiones y renderiza la tabla minimalista
     const renderAdjacencyMatrix = () => {
         const { nodes, edges } = graphData.current;
         const n = nodes.length;
 
-        if (n === 0) return <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center', color: '#666' }}>El lienzo está vacío.</div>;
+        if (n === 0) {
+            return <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center', color: '#666' }}>El lienzo está vacío. Crea nodos para analizar la matriz.</div>;
+        }
 
         const sortedNodes = [...nodes].sort((a, b) => a.id - b.id);
         const matrix: number[][] = Array(n).fill(null).map(() => Array(n).fill(0));
@@ -450,11 +453,18 @@ export default function GraphEditor() {
         edges.forEach(edge => {
             const fromIdx = nodeIndexMap.get(edge.from.id);
             const toIdx = nodeIndexMap.get(edge.to.id);
-            if (fromIdx !== undefined && toIdx !== undefined) matrix[fromIdx][toIdx] = parseFloat(edge.weight) || 0;
+            if (fromIdx !== undefined && toIdx !== undefined) {
+                matrix[fromIdx][toIdx] = parseFloat(edge.weight) || 0;
+            }
         });
 
+        // 1. Calculamos los Grados (Suma de pesos)
         const outDegree = matrix.map(row => row.reduce((a, b) => a + b, 0));
         const inDegree = matrix[0].map((_, i) => matrix.map(row => row[i]).reduce((a, b) => a + b, 0));
+
+        // 2. NUEVO: Calculamos los Contadores (Cantidad de conexiones ignorando el peso)
+        const outCount = matrix.map(row => row.filter(val => val > 0).length);
+        const inCount = matrix[0].map((_, i) => matrix.map(row => row[i]).filter(val => val > 0).length);
 
         const activeEmitters = outDegree.filter(s => s > 0).length;
         const activeReceivers = inDegree.filter(s => s > 0).length;
@@ -465,41 +475,103 @@ export default function GraphEditor() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                 <table style={{ borderCollapse: 'collapse', color: '#E0E0E0', userSelect: 'none', width: '100%' }}>
                     <tbody>
+                        {/* Cabecera superior */}
                         <tr style={{ borderBottom: '1px solid #333' }}>
                             <td style={{ ...cellStyle, color: '#666', fontSize: '12px' }}>Origen \ Destino</td>
-                            {sortedNodes.map(node => <td key={`h-${node.id}`} style={{ ...cellStyle, color: '#D8B4FE', fontWeight: 'bold' }}>{node.label}</td>)}
+                            {sortedNodes.map(node => (
+                                <td key={`h-${node.id}`} style={{ ...cellStyle, color: '#D8B4FE', fontWeight: 'bold' }}>{node.label}</td>
+                            ))}
+                            {/* Grado de Salida */}
                             <td style={{ ...cellStyle, color: '#A855F7', borderLeft: '1px dashed #333', fontSize: '12px', fontWeight: 'bold' }}>Grado Salida</td>
+                            {/* NUEVO: Columna de Contador */}
+                            <td style={{ ...cellStyle, color: '#888', borderLeft: '1px dotted #222', fontSize: '11px', paddingLeft: '5px' }}>Nº Conex.</td>
                         </tr>
+
+                        {/* Filas de la matriz */}
                         {sortedNodes.map((node, i) => (
                             <tr key={`r-${node.id}`} style={{ borderBottom: '1px solid #1A1A1A' }}>
                                 <td style={{ ...cellStyle, color: '#D8B4FE', fontWeight: 'bold' }}>{node.label}</td>
+                                
                                 {matrix[i].map((val, j) => (
-                                    <td key={`c-${i}-${j}`} style={{ ...cellStyle, backgroundColor: val === 0 ? 'transparent' : 'rgba(168, 85, 247, 0.1)', color: val === 0 ? '#444' : '#FFF', borderRadius: '4px' }}>
+                                    <td key={`c-${i}-${j}`} style={{
+                                        ...cellStyle,
+                                        backgroundColor: val === 0 ? 'transparent' : 'rgba(168, 85, 247, 0.1)',
+                                        color: val === 0 ? '#444' : '#FFF',
+                                        borderRadius: '4px' 
+                                    }}>
                                         {val}
                                     </td>
                                 ))}
-                                <td style={{ ...cellStyle, borderLeft: '1px dashed #333', color: outDegree[i] > 0 ? '#A855F7' : '#555', fontWeight: outDegree[i] > 0 ? 'bold' : 'normal' }}>
+                                
+                                {/* Total Grado Salida */}
+                                <td style={{
+                                    ...cellStyle,
+                                    borderLeft: '1px dashed #333',
+                                    color: outDegree[i] > 0 ? '#A855F7' : '#555',
+                                    fontWeight: outDegree[i] > 0 ? 'bold' : 'normal'
+                                }}>
                                     {outDegree[i]}
+                                </td>
+                                
+                                {/* NUEVO: Valor del Contador de Salida */}
+                                <td style={{
+                                    ...cellStyle,
+                                    borderLeft: '1px dotted #222',
+                                    color: outCount[i] > 0 ? '#D8B4FE' : '#444',
+                                    fontSize: '13px'
+                                }}>
+                                    {outCount[i]}
                                 </td>
                             </tr>
                         ))}
-                        <tr>
+
+                        {/* Fila Inferior 1: Grado de Entrada (Suma de pesos) */}
+                        <tr style={{ borderBottom: '1px dotted #222' }}>
                             <td style={{ ...cellStyle, color: '#A855F7', fontSize: '12px', fontWeight: 'bold' }}>Grado Entrada</td>
                             {inDegree.map((sum, j) => (
-                                <td key={`s-${j}`} style={{ ...cellStyle, color: sum > 0 ? '#A855F7' : '#555', fontWeight: sum > 0 ? 'bold' : 'normal' }}>
+                                <td key={`s-${j}`} style={{
+                                    ...cellStyle,
+                                    color: sum > 0 ? '#A855F7' : '#555',
+                                    fontWeight: sum > 0 ? 'bold' : 'normal'
+                                }}>
                                     {sum}
                                 </td>
                             ))}
                             <td style={{ ...cellStyle, borderLeft: '1px dashed #333' }}></td>
+                            <td style={{ ...cellStyle, borderLeft: '1px dotted #222' }}></td>
+                        </tr>
+
+                        {/* NUEVO: Fila Inferior 2: Contador de Entrada (Cantidad de conexiones) */}
+                        <tr>
+                            <td style={{ ...cellStyle, color: '#888', fontSize: '11px' }}>Nº Conex.</td>
+                            {inCount.map((cnt, j) => (
+                                <td key={`cnt-${j}`} style={{
+                                    ...cellStyle,
+                                    color: cnt > 0 ? '#D8B4FE' : '#444',
+                                    fontSize: '13px'
+                                }}>
+                                    {cnt}
+                                </td>
+                            ))}
+                            <td style={{ ...cellStyle, borderLeft: '1px dashed #333' }}></td>
+                            <td style={{ ...cellStyle, borderLeft: '1px dotted #222' }}></td>
                         </tr>
                     </tbody>
                 </table>
+
+                {/* Footer Académico */}
                 <div style={{ marginTop: '3rem', width: '100%', padding: '1rem', background: '#0A0A0A', borderRadius: '8px', border: '1px solid #222' }}>
                     <h4 style={{ color: '#D8B4FE', marginBottom: '0.5rem', fontSize: '0.9rem', textAlign: 'center' }}>Análisis Topológico</h4>
                     <div style={{ display: 'flex', justifyContent: 'space-around', color: '#888', fontSize: '13px' }}>
-                        <div style={{ textAlign: 'center' }}><p>Nodos Emisores</p><strong style={{ color: '#FFF', fontSize: '1.2rem' }}>{activeEmitters} <span style={{fontSize: '0.9rem', color: '#555'}}>/ {n}</span></strong></div>
+                        <div style={{ textAlign: 'center' }}>
+                            <p>Nodos Emisores</p>
+                            <strong style={{ color: '#FFF', fontSize: '1.2rem' }}>{activeEmitters} <span style={{fontSize: '0.9rem', color: '#555'}}>/ {n}</span></strong>
+                        </div>
                         <div style={{ width: '1px', background: '#333' }}></div>
-                        <div style={{ textAlign: 'center' }}><p>Nodos Receptores</p><strong style={{ color: '#FFF', fontSize: '1.2rem' }}>{activeReceivers} <span style={{fontSize: '0.9rem', color: '#555'}}>/ {n}</span></strong></div>
+                        <div style={{ textAlign: 'center' }}>
+                            <p>Nodos Receptores</p>
+                            <strong style={{ color: '#FFF', fontSize: '1.2rem' }}>{activeReceivers} <span style={{fontSize: '0.9rem', color: '#555'}}>/ {n}</span></strong>
+                        </div>
                     </div>
                 </div>
             </div>
