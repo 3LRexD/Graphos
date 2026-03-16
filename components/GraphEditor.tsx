@@ -26,6 +26,7 @@ import GuideModal    from "./modals/GuideModal";
 import BgModal       from "./modals/BgModal";
 import AlgoSelector  from "./toolbar/AlgoSelector";
 import MatrixTable   from "./panels/MatrixTable";
+import MatrixWidget from "./panels/MatrixWidget";
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -503,27 +504,13 @@ export default function GraphEditor() {
         onClear={clearAll}
       />
 
-      {/* ── NUEVO WIDGET: MATRIZ DE ADYACENCIA FLOTANTE ── */}
+      {/* ── NUEVO WIDGET: MATRIZ DE ADYACENCIA FLOTANTE REDIMENSIONABLE ── */}
       {showMatrixWidget && (
-        <div style={{
-          position: "absolute", bottom: 20, left: 20, zIndex: 30,
-          background: "#0a0a0a", border: "1px solid #222", borderRadius: "10px",
-          boxShadow: "0 10px 40px rgba(0,0,0,0.8)", display: "flex", flexDirection: "column",
-          maxWidth: "400px", maxHeight: "400px" // Limita su tamaño máximo
-        }}>
-          {/* Header del Widget */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #1a1a1a" }}>
-            <span style={{ color: "#FFF", fontSize: 13, fontWeight: "bold", fontFamily: "'Courier New', monospace" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={P.purple} strokeWidth="2" style={{marginRight: 8, verticalAlign: 'middle'}}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-              Matriz de Adyacencia
-            </span>
-            <button onClick={() => setShowMatrixWidget(false)} style={{ background: "none", border: "none", color: "#666", cursor: "pointer", fontSize: 16 }}>✕</button>
-          </div>
-          {/* Contenido (Tabla) */}
-          <div style={{ padding: "16px", overflow: "auto" }}>
-            <MatrixTable nodes={graph.current.nodes} edges={graph.current.edges} />
-          </div>
-        </div>
+        <MatrixWidget 
+          nodes={graph.current.nodes} 
+          edges={graph.current.edges} 
+          onClose={() => setShowMatrixWidget(false)} 
+        />
       )}
 
       {/* Side panel */}
