@@ -1,10 +1,7 @@
-// ─── UI Modes ─────────────────────────────────────────────────────────────────
+import type { GEdge } from "./graph";
 
 export type ToolMode = "add" | "connect" | "move" | "edit" | "delete";
-
-export type AlgoMode = "none" | "cpm" | "johnson";
-
-// ─── Modal prompt config ──────────────────────────────────────────────────────
+export type AlgoMode = "none" | "cpm" | "johnson" | "hungarian-min" | "hungarian-max";
 
 export interface PromptCfg {
   open: boolean;
@@ -16,33 +13,23 @@ export interface PromptCfg {
   onCancel: (() => void) | null;
 }
 
-// ─── Algorithm result shapes ──────────────────────────────────────────────────
-
 export interface CPMResult {
   error: false;
   TE: Record<number, number>;
   TL: Record<number, number>;
   maxTE: number;
-  critEdges: Set<import("./graph").GEdge>;
+  critEdges: Set<GEdge>;
   topo: number[];
 }
-
-export interface CPMError {
-  error: true;
-}
-
+export interface CPMError { error: true; }
 export type CPMOutput = CPMResult | CPMError | null;
 
 export interface JohnsonResult {
   error: false;
   dist: Record<number, number>;
-  pathEdges: import("./graph").GEdge[];
+  pathEdges: GEdge[];
   pathNodes: number[];
   totalCost: number;
 }
-
-export interface JohnsonError {
-  error: "no_path";
-}
-
+export interface JohnsonError { error: "no_path"; }
 export type JohnsonOutput = JohnsonResult | JohnsonError | null;

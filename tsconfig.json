@@ -28,6 +28,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-, "components/GraphEditor.jsx"  ],
+, "components/GraphEditor.jsx", "components/panels/Hungariantable.tsx"  ],
   "exclude": ["node_modules"]
 }
