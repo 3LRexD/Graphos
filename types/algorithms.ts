@@ -1,32 +1,42 @@
 import type { GEdge } from "./graph";
 
 export type ToolMode = "add" | "connect" | "move" | "edit" | "delete";
-export type AlgoMode = "none" | "cpm" | "johnson" | "hungarian-min" | "hungarian-max";
+
+// "none" = neutral/pizarra mode — unrestricted connections (self-loops, bidirectional)
+export type AlgoMode =
+  | "none"
+  | "cpm"
+  | "johnson-min"
+  | "johnson-max"
+  | "hungarian-min"
+  | "hungarian-max";
 
 export interface PromptCfg {
-  open: boolean;
-  title: string;
-  value: string;
+  open:        boolean;
+  title:       string;
+  value:       string;
   placeholder: string;
-  error: string;
-  onOk: ((v: string) => void) | null;
-  onCancel: (() => void) | null;
+  error:       string;
+  onOk:        ((v: string) => void) | null;
+  onCancel:    (() => void) | null;
 }
 
+// ── CPM ───────────────────────────────────────────────────────────────────────
 export interface CPMResult {
-  error: false;
-  TE: Record<number, number>;
-  TL: Record<number, number>;
-  maxTE: number;
+  error:     false;
+  TE:        Record<number, number>;
+  TL:        Record<number, number>;
+  maxTE:     number;
   critEdges: Set<GEdge>;
-  topo: number[];
+  topo:      number[];
 }
 export interface CPMError { error: true; }
 export type CPMOutput = CPMResult | CPMError | null;
 
+// ── Johnson ───────────────────────────────────────────────────────────────────
 export interface JohnsonResult {
-  error: false;
-  dist: Record<number, number>;
+  error:     false;
+  dist:      Record<number, number>;
   pathEdges: GEdge[];
   pathNodes: number[];
   totalCost: number;

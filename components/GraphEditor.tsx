@@ -10,30 +10,29 @@ import { P }                      from "@/components/canvas/palette";
 import { BG_PRESETS }             from "@/components/canvas/backgrounds";
 import { drawNode, NODE_R }       from "@/components/canvas/drawNode";
 import { drawEdge, edgeMidpoint } from "@/components/canvas/drawEdge";
-import TopToolbar           from "@/components/toolbar/TopToolbar";
-import BottomToolbar        from "@/components/toolbar/BottomToolbar";
-import SidePanel            from "@/components/panels/SidePanel";
-import PromptModal          from "@/components/modals/PromptModal";
-import GuideModal           from "@/components/modals/GuideModal";
-import BgModal              from "@/components/modals/BgModal";
-import AlgoSelector         from "@/components/toolbar/AlgoSelector";
-import HungarianMatrixEditor from "@/components/modals/Hungarianmatrixeditor";
+import TopToolbar      from "@/components/toolbar/TopToolbar";
+import BottomToolbar   from "@/components/toolbar/BottomToolbar";
+import ExecutionPanel  from "@/components/panels/ExecutionPanel";
+import PromptModal     from "@/components/modals/PromptModal";
+import GuideModal      from "@/components/modals/GuideModal";
+import BgModal         from "@/components/modals/BgModal";
+import AlgoSelector    from "@/components/toolbar/AlgoSelector";
+import FloatingMatrix  from "@/components/modals/FloatingMatrix";
 
 export default function GraphEditor() {
   const canvasRef   = useRef<HTMLCanvasElement | null>(null);
   const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // ── UI state ───────────────────────────────────────────────────────────────
-  const [mode,             setMode]             = useState<ToolMode>("add");
-  const [algoMode,         setAlgoMode]         = useState<AlgoMode>("none");
-  const [panelOpen,        setPanelOpen]        = useState(false);
-  const [panelTab,         setPanelTab]         = useState<"activity" | "matrix">("activity");
-  const [showAlgoModal,    setShowAlgoModal]    = useState(false);
-  const [showGuide,        setShowGuide]        = useState(false);
-  const [showBgModal,      setShowBgModal]      = useState(false);
-  const [showMatrixEditor, setShowMatrixEditor] = useState(false);
-  const [bgPreset,         setBgPreset]         = useState("dark");
-  const [bgImage,          setBgImage]          = useState<string | null>(null);
+  const [mode,          setMode]          = useState<ToolMode>("add");
+  const [algoMode,      setAlgoMode]      = useState<AlgoMode>("none");
+  const [panelOpen,     setPanelOpen]     = useState(false);
+  const [showAlgoModal, setShowAlgoModal] = useState(false);
+  const [showGuide,     setShowGuide]     = useState(false);
+  const [showBgModal,   setShowBgModal]   = useState(false);
+  const [showMatrix,    setShowMatrix]    = useState(false);
+  const [bgPreset,      setBgPreset]      = useState("dark");
+  const [bgImage,       setBgImage]       = useState<string | null>(null);
 
   // ── Johnson flow ───────────────────────────────────────────────────────────
   const [jOrigin, setJOrigin] = useState<GNode | null>(null);
@@ -108,13 +107,13 @@ export default function GraphEditor() {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Edges
+    // ── Edges ────────────────────────────────────────────────────────────────
     data.edges.forEach((edge) => {
       const isAnim  = aE.has(edge);
-      const isCrit  = am === "cpm"     && cpm && !cpm.error && cpm.critEdges.has(edge);
-      const isJPath = am === "johnson" && jd  && jd.error === false && jd.pathEdges.includes(edge);
+      const isCrit  = (am === "cpm" || am === "johnson-max") && cpm && !cpm.error && cpm.critEdges.has(edge);
+      const isJPath = am === "johnson-min" && jd && jd.error === false && jd.pathEdges.includes(edge);
       let color = "#3a3a3a", lw = 1.5;
-      if (isAnim)       { color = am === "cpm" ? P.red : P.cyan; lw = 3.5; }
+      if (isAnim)       { color = (am === "cpm" || am === "johnson-max") ? P.red : P.cyan; lw = 3.5; }
       else if (isCrit)  { color = P.red;  lw = 2.5; }
       else if (isJPath) { color = P.cyan; lw = 2.5; }
       drawEdge(ctx, edge, color, lw, isAnim ? color : undefined);
@@ -131,31 +130,34 @@ export default function GraphEditor() {
       ctx.restore();
     }
 
-    // Nodes
+    // ── Nodes ────────────────────────────────────────────────────────────────
     data.nodes.forEach((node) => {
       const isAnim  = aN.has(node.id);
-      const isCritN = !!(am === "cpm"     && cpm && !cpm.error && aE.size > 0 && [...cpm.critEdges].some((e) => e.from.id === node.id || e.to.id === node.id));
-      const isJN    = !!(am === "johnson" && jd  && jd.error === false && aE.size > 0 && jd.pathNodes.includes(node.id));
+      const isCritN = !!((am === "cpm" || am === "johnson-max") && cpm && !cpm.error && aE.size > 0 &&
+        [...cpm.critEdges].some((e) => e.from.id === node.id || e.to.id === node.id));
+      const isJN    = !!(am === "johnson-min" && jd && jd.error === false && aE.size > 0 && jd.pathNodes.includes(node.id));
+
       drawNode(ctx, node, {
         selected:      node === data.selectedNode,
         tempStart:     node === data.tempStartNode,
-        cpmData:       am !== "none" && cpm && !cpm.error ? cpm : null,
+        // Only show CPM split when CPM is active
+        cpmData:       (am === "cpm" || am === "johnson-max") && cpm && !cpm.error ? cpm : null,
         algoMode:      am,
         animHighlight: isAnim || isCritN || isJN,
-        animColor:     am === "cpm" ? P.red : P.cyan,
+        animColor:     (am === "cpm" || am === "johnson-max") ? P.red : P.cyan,
         originNode:    jOriginRef.current,
         destNode:      jDestRef.current,
       });
     });
 
-    // Cycle error
-    if (am !== "none" && cpm && "error" in cpm && cpm.error) {
+    // ── Error overlays ────────────────────────────────────────────────────────
+    if ((am === "cpm" || am === "johnson-max") && cpm && "error" in cpm && cpm.error) {
       ctx.fillStyle = P.red; ctx.font = "13px 'Courier New', monospace"; ctx.textAlign = "left";
       ctx.fillText("⚠ Ciclo detectado — El grafo debe ser un DAG válido.", 20, 60);
     }
 
-    // Legends
-    if (am === "cpm") {
+    // ── Legends ───────────────────────────────────────────────────────────────
+    if (am === "cpm" || am === "johnson-max") {
       ctx.font = "10px 'Courier New', monospace"; ctx.textAlign = "left";
       ctx.fillStyle = P.cyan; ctx.fillText("TE (temprano)", 14, canvas.height - 30);
       ctx.fillStyle = P.red;  ctx.fillText("TL (tardío)",   14, canvas.height - 16);
@@ -163,7 +165,7 @@ export default function GraphEditor() {
     if (am === "hungarian-min" || am === "hungarian-max") {
       ctx.font = "10px 'Courier New', monospace"; ctx.textAlign = "left";
       ctx.fillStyle = am === "hungarian-min" ? P.cyan : P.green;
-      ctx.fillText("Agentes → origen de aristas   Tareas → destino de aristas", 14, canvas.height - 16);
+      ctx.fillText("Agentes = solo envían aristas   Tareas = solo reciben aristas", 14, canvas.height - 16);
     }
   }, [graph]);
 
@@ -203,7 +205,8 @@ export default function GraphEditor() {
       const ce = !cn ? getEdge(x, y) : null;
       const am = algoModeRef.current;
 
-      if (am === "johnson" && cn && modeRef.current !== "delete" && modeRef.current !== "edit") {
+      // Johnson: node selection flow
+      if ((am === "johnson-min" || am === "johnson-max") && cn && modeRef.current !== "delete" && modeRef.current !== "edit") {
         const step = jStepRef.current;
         if (step === "origin") { setJOrigin(cn); setJStep("dest"); draw(); return; }
         if (step === "dest" && cn.id !== jOriginRef.current?.id) { setJDest(cn); setJStep("done"); draw(); return; }
@@ -259,11 +262,25 @@ export default function GraphEditor() {
         data.isDragging = false; data.selectedNode = null;
       } else if (modeRef.current === "connect" && data.tempStartNode) {
         const target = getNode(data.mouseX, data.mouseY);
-        if (target && target.id !== data.tempStartNode.id) {
-          if (wouldCycle(data.nodes, data.edges, data.tempStartNode.id, target.id)) {
-            showToast("⚠ Esta conexión crearía un ciclo. Los ciclos no están permitidos.");
+        if (target) {
+          const am = algoModeRef.current;
+          const isNeutral = am === "none";
+
+          // In neutral mode: allow self-loops and bidirectional — no cycle check
+          if (target.id === data.tempStartNode.id && !isNeutral) {
+            // Self-loops only in neutral mode
             data.tempStartNode = null; draw(); return;
           }
+
+          // In algorithm mode: prevent cycles
+          if (!isNeutral && target.id !== data.tempStartNode.id) {
+            if (wouldCycle(data.nodes, data.edges, data.tempStartNode.id, target.id)) {
+              showToast("⚠ Esta conexión crearía un ciclo.\nLos ciclos no están permitidos en este modo.");
+              data.tempStartNode = null; draw(); return;
+            }
+          }
+
+          // Prevent exact duplicate edges (same from→to)
           if (!data.edges.some((e) => e.from === data.tempStartNode && e.to === target)) {
             const from = data.tempStartNode, to = target;
             setPrompt({ open: true, title: "Peso de la Conexión", value: "1", placeholder: "Solo números", error: "",
@@ -301,34 +318,43 @@ export default function GraphEditor() {
     const { nodes, edges } = graph.current;
     if (nodes.length < 2) { showToast("⚠ Agrega al menos 2 nodos antes de resolver."); return; }
 
-    if (algoMode === "cpm") {
-      if (edges.some((e) => !e.weight || isNaN(Number(e.weight)))) { showToast("⚠ Algunas aristas no tienen peso. Usa modo Editar."); return; }
+    if (algoMode === "cpm" || algoMode === "johnson-max") {
+      if (edges.some((e) => !e.weight || isNaN(Number(e.weight)))) { showToast("⚠ Aristas sin peso. Usa modo Editar."); return; }
       const res = computeCPM(nodes, edges);
       if (!res) { showToast("⚠ Sin datos para calcular."); return; }
       if (res.error) { showToast("⚠ Ciclo detectado. CPM requiere un DAG válido."); return; }
-      setCpmResult(res); setPanelOpen(true); setPanelTab("activity");
+      setCpmResult(res); setPanelOpen(true);
       animateCPM(res);
 
-    } else if (algoMode === "johnson") {
-      if (!jOrigin || !jDest) { showToast("⚠ Selecciona nodo origen y destino para Johnson."); return; }
-      if (edges.some((e) => !e.weight || isNaN(Number(e.weight)))) { showToast("⚠ Algunas aristas no tienen peso. Usa modo Editar."); return; }
+    } else if (algoMode === "johnson-min") {
+      if (!jOrigin || !jDest) { showToast("⚠ Selecciona nodo origen y destino."); return; }
+      if (edges.some((e) => !e.weight || isNaN(Number(e.weight)))) { showToast("⚠ Aristas sin peso. Usa modo Editar."); return; }
       const res = computeJohnson(nodes, edges, jOrigin.id, jDest.id);
       if (!res) { showToast("⚠ Sin datos para calcular."); return; }
       if (res.error === "no_path") { showToast(`⚠ No existe ruta de "${jOrigin.label}" a "${jDest.label}".`); return; }
-      setJResult(res); setPanelOpen(true); setPanelTab("activity");
+      setJResult(res); setPanelOpen(true);
       animateJohnson(res);
 
     } else if (algoMode === "hungarian-min" || algoMode === "hungarian-max") {
-      if (edges.some((e) => !e.weight || isNaN(Number(e.weight)))) { showToast("⚠ Algunas aristas no tienen peso. Usa modo Editar."); return; }
+      if (edges.some((e) => !e.weight || isNaN(Number(e.weight)))) { showToast("⚠ Aristas sin peso. Usa modo Editar."); return; }
       const res = computeHungarian(nodes, edges, algoMode === "hungarian-min" ? "min" : "max");
       if (!res) { showToast("⚠ Sin datos para calcular."); return; }
       if (res.error === "not_bipartite") { showToast("⚠ El grafo debe ser bipartito.\nDibuja aristas solo de Agentes → Tareas."); return; }
-      if (res.error === "no_edges")      { showToast("⚠ Agrega aristas con pesos entre agentes y tareas."); return; }
-      setHResult(res); setPanelOpen(true); setPanelTab("activity");
+      if (res.error === "no_edges")      { showToast("⚠ Agrega aristas con pesos."); return; }
+      setHResult(res); setPanelOpen(true);
     }
   };
 
-  // ── Matrix editor apply ────────────────────────────────────────────────────
+  // ── Replay ─────────────────────────────────────────────────────────────────
+  const replay = () => {
+    if (algoMode === "cpm" || algoMode === "johnson-max") {
+      if (cpmResult && !cpmResult.error) animateCPM(cpmResult);
+    } else if (algoMode === "johnson-min") {
+      if (jResult && jResult.error === false) animateJohnson(jResult);
+    }
+  };
+
+  // ── Matrix apply from FloatingMatrix editor ────────────────────────────────
   const onMatrixApply = (agentLabels: string[], taskLabels: string[], mat: number[][]) => {
     let id = 1;
     const agentNodes: GNode[] = agentLabels.map((label) => ({ id: id++, x: 0, y: 0, label }));
@@ -340,12 +366,8 @@ export default function GraphEditor() {
         if (val !== 0) edges.push({ from: agentNodes[r], to: taskNodes[c], weight: String(val) });
       })
     );
-    const hunMode = algoMode === "hungarian-min" ? "min" : "max";
-    const res = computeHungarian(nodes, edges, hunMode);
-    setHResult(res);
-    setPanelOpen(true);
-    setPanelTab("activity");
-    setShowMatrixEditor(false);
+    const res = computeHungarian(nodes, edges, algoMode === "hungarian-min" ? "min" : "max");
+    setHResult(res); setPanelOpen(true);
   };
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -359,21 +381,21 @@ export default function GraphEditor() {
   };
 
   const clearAlgo = () => {
-    setAlgoMode("none"); setCpmResult(null); setJResult(null); setHResult(null);
+    // Reset all algorithm state and return to neutral mode
+    setAlgoMode("none");
+    setCpmResult(null); setJResult(null); setHResult(null);
     setJOrigin(null); setJDest(null); setJStep("origin");
     resetAnim(); setPanelOpen(false);
+    // Redraw — nodes return to default appearance
+    setTimeout(() => draw(), 16);
   };
 
   const selectAlgo = (id: string) => {
-    setAlgoMode(id as AlgoMode);
-    setHResult(null);
-    if (id === "johnson") { setJOrigin(null); setJDest(null); setJStep("origin"); setJResult(null); }
+    // Reset previous algo state before switching
+    setCpmResult(null); setJResult(null); setHResult(null);
+    setJOrigin(null); setJDest(null); setJStep("origin");
     resetAnim();
-  };
-
-  const togglePanel = (tab: "activity" | "matrix") => {
-    if (panelTab === tab) { setPanelOpen((o) => !o); }
-    else { setPanelTab(tab); setPanelOpen(true); }
+    setAlgoMode(id as AlgoMode);
   };
 
   const exportJSON = () => {
@@ -428,8 +450,8 @@ export default function GraphEditor() {
     r.readAsDataURL(f);
   };
 
+  const isJohnson   = algoMode === "johnson-min" || algoMode === "johnson-max";
   const isHungarian = algoMode === "hungarian-min" || algoMode === "hungarian-max";
-  const hungarianColor = algoMode === "hungarian-min" ? P.cyan : P.green;
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -445,51 +467,48 @@ export default function GraphEditor() {
         </div>
       )}
 
-      {/* Hungarian matrix editor button */}
-      {isHungarian && (
-        <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 30 }}>
-          <button
-            onClick={() => setShowMatrixEditor(true)}
-            style={{ background: "rgba(8,8,8,0.92)", border: `1px solid ${hungarianColor}`, borderRadius: 6, padding: "7px 16px", color: hungarianColor, fontSize: 11, cursor: "pointer", fontFamily: "'Courier New', monospace", backdropFilter: "blur(10px)" }}
-          >
-            ⊞ Editar Matriz
-          </button>
+      {/* Johnson node-selection hint */}
+      {isJohnson && jStep !== "done" && (
+        <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(8,8,8,0.92)", border: `1px solid ${jStep === "origin" ? P.green : P.red}`, borderRadius: 6, padding: "7px 18px", color: jStep === "origin" ? P.green : P.red, fontSize: 12, zIndex: 30, backdropFilter: "blur(10px)", whiteSpace: "nowrap" }}>
+          {jStep === "origin" ? "Haz clic en el nodo ORIGEN" : "Haz clic en el nodo DESTINO"}
         </div>
       )}
 
-      {/* Johnson step hint */}
-      {algoMode === "johnson" && jStep !== "done" && (
-        <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(8,8,8,0.92)", border: `1px solid ${jStep === "origin" ? P.green : P.red}`, borderRadius: 6, padding: "7px 18px", color: jStep === "origin" ? P.green : P.red, fontSize: 11, zIndex: 30, backdropFilter: "blur(10px)", whiteSpace: "nowrap" }}>
-          {jStep === "origin" ? "👆 Haz clic en el nodo ORIGEN" : "👆 Haz clic en el nodo DESTINO"}
+      {/* Neutral mode label */}
+      {algoMode === "none" && (
+        <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(8,8,8,0.7)", border: `1px solid ${P.border}`, borderRadius: 6, padding: "5px 14px", color: P.muted, fontSize: 13, zIndex: 10, letterSpacing: 1, backdropFilter: "blur(8px)", whiteSpace: "nowrap" }}>
+          PIZARRA LIBRE — auto-conexiones y aristas bidireccionales permitidas
         </div>
       )}
 
       <TopToolbar
+        algoMode={algoMode}
+        isAnimating={isAnimating}
+        onSolve={solve}
         onImport={handleImport}
         onExportJSON={exportJSON}
         onExportImage={exportImage}
         onOpenBg={() => setShowBgModal(true)}
         onOpenGuide={() => setShowGuide(true)}
-        // Props movidas aquí:
-        algoMode={algoMode}
-        isAnimating={isAnimating}
         onOpenAlgo={() => setShowAlgoModal(true)}
-        onSolve={solve}
       />
 
       <BottomToolbar
         mode={mode}
+        algoMode={algoMode}
+        isAnimating={isAnimating}
+        panelOpen={panelOpen}
         onMode={setMode}
+        onOpenAlgo={() => setShowAlgoModal(true)}
+        onSolve={solve}
+        onClearAlgo={clearAlgo}
+        onTogglePanel={() => setPanelOpen((o) => !o)}
+        onOpenMatrix={() => setShowMatrix(true)}
         onClear={clearAll}
-        // Pasamos el estado del panel como indicador de si la matriz está abierta
-        isMatrixOpen={panelOpen && panelTab === "matrix"}
-        // Pasamos la función que alterna (toggle) específicamente a la pestaña de la matriz
-        onToggleMatrix={() => togglePanel("matrix")}
       />
 
-      <SidePanel
+      <ExecutionPanel
         open={panelOpen}
-        tab={panelTab}
         algoMode={algoMode}
         nodes={graph.current.nodes}
         edges={graph.current.edges}
@@ -499,7 +518,8 @@ export default function GraphEditor() {
         originNode={jOrigin}
         destNode={jDest}
         jStep={jStep}
-        onTabChange={togglePanel}
+        isAnimating={isAnimating}
+        onReplay={replay}
         onClose={() => setPanelOpen(false)}
       />
 
@@ -523,12 +543,13 @@ export default function GraphEditor() {
 
       {showGuide && <GuideModal onClose={() => setShowGuide(false)} />}
 
-      {showMatrixEditor && (
-        <HungarianMatrixEditor
+      {showMatrix && (
+        <FloatingMatrix
           nodes={graph.current.nodes}
           edges={graph.current.edges}
-          onApply={onMatrixApply}
-          onClose={() => setShowMatrixEditor(false)}
+          algoMode={algoMode}
+          onClose={() => setShowMatrix(false)}
+          onApply={isHungarian ? onMatrixApply : undefined}
         />
       )}
 
@@ -538,7 +559,6 @@ export default function GraphEditor() {
         onOk={() => prompt.onOk?.(prompt.value)}
         onCancel={() => prompt.onCancel?.()}
       />
-
     </div>
   );
 }
