@@ -57,6 +57,32 @@ export const ALGO_FAMILIES: AlgoFamily[] = [
     ],
   },
   {
+    id:          "dijkstra",
+    label:       "Dijkstra",
+    icon:        "◉",
+    color:       "#00bfff",
+    colorDim:    "rgba(0,191,255,0.15)",
+    description: "Camino más corto desde un origen. Selecciona origen y destino en el grafo.",
+    variants: [
+      {
+        id:          "dijkstra-min",
+        label:       "Minimizar",
+        description: "Encuentra el camino de menor costo entre origen y destino.",
+        icon:        "⬇",
+        color:       "#00bfff",
+        colorDim:    "rgba(0,191,255,0.15)",
+      },
+      {
+        id:          "dijkstra-max",
+        label:       "Maximizar",
+        description: "Encuentra el camino de mayor costo entre origen y destino.",
+        icon:        "⬆",
+        color:       "#00bfff",
+        colorDim:    "rgba(0,191,255,0.15)",
+      },
+    ],
+  },
+  {
     id:          "asignacion",
     label:       "Asignación",
     icon:        "⊞",
@@ -107,15 +133,6 @@ export const ALGO_FAMILIES: AlgoFamily[] = [
     color:   "#666",
     colorDim:"rgba(100,100,100,0.15)",
     description: "Construcción y recorrido de árboles binarios.",
-    coming:  true,
-  },
-  {
-    id:      "dijkstra",
-    label:   "Dijkstra",
-    icon:    "◉",
-    color:   "#666",
-    colorDim:"rgba(100,100,100,0.15)",
-    description: "Camino más corto desde un origen a todos los nodos.",
     coming:  true,
   },
   {

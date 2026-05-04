@@ -1,9 +1,10 @@
 "use client";
 import { useRef, useEffect, useState, useCallback } from "react";
 
-import type { GNode, GEdge, ToolMode, AlgoMode, PromptCfg } from "@/types";
-import { computeCPM, computeJohnson, wouldCycle, computeHungarian, computeKruskal } from "@/algorithms";
-import type { CPMOutput, JohnsonOutput, KruskalOutput } from "@/types";
+import type { GNode, GEdge, ToolMode, AlgoMode, PromptCfg, CPMOutput, DijkstraMaxOutput } from "@/types";
+import type { DijkstraMinOutput } from "@/types";
+import { computeCPM, computeJohnson, computeDijkstraMin, computeDijkstraMax, wouldCycle, computeHungarian, computeKruskal } from "@/algorithms";
+import type { KruskalOutput } from "@/types";
 import type { HungarianOutput } from "@/algorithms/hungarian";
 import { useToast, useAnimation, useGraphState } from "@/hooks";
 import { P }                      from "@/components/canvas/palette";
@@ -23,7 +24,7 @@ export default function GraphEditor() {
   const canvasRef   = useRef<HTMLCanvasElement | null>(null);
   const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // ── UI state ──────────────────────────────────────────────────────────────────
+  // ── UI state ──────────────────────────────────────────────────────────────
   const [mode,          setMode]          = useState<ToolMode>("add");
   const [algoMode,      setAlgoMode]      = useState<AlgoMode>("none");
   const [panelOpen,     setPanelOpen]     = useState(false);
@@ -34,23 +35,30 @@ export default function GraphEditor() {
   const [bgPreset,      setBgPreset]      = useState("dark");
   const [bgImage,       setBgImage]       = useState<string | null>(null);
 
-  // ── Johnson flow ──────────────────────────────────────────────────────────────
+  // ── Johnson flow ────────────���────────────────────────────────────────────────
   const [jOrigin, setJOrigin] = useState<GNode | null>(null);
   const [jDest,   setJDest]   = useState<GNode | null>(null);
   const [jStep,   setJStep]   = useState<"origin" | "dest" | "done">("origin");
 
-  // ── Algorithm results ─────────────────────────────────────────────────────────
-  const [cpmResult, setCpmResult] = useState<CPMOutput>(null);
-  const [jResult,   setJResult]   = useState<JohnsonOutput>(null);
-  const [hResult,   setHResult]   = useState<HungarianOutput>(null);
-  const [kResult,   setKResult]   = useState<KruskalOutput>(null);
+  // ── Dijkstra flow ────────────────────────────────────────────────────────────
+  const [dOrigin, setDOrigin] = useState<GNode | null>(null);
+  const [dDest,   setDDest]   = useState<GNode | null>(null);
+  const [dStep,   setDStep]   = useState<"origin" | "dest" | "done">("origin");
 
-  // ── Prompt modal ──────────────────────────────────────────────────────────────
+  // ── Algorithm results ───────────────────────────────────────────────────────────
+  const [cpmResult,      setCpmResult]      = useState<CPMOutput>(null);
+  const [jResult,        setJResult]        = useState<any>(null);
+  const [dijkstraMinResult, setDijkstraMinResult] = useState<DijkstraMinOutput>(null);
+  const [dijkstraMaxResult, setDijkstraMaxResult] = useState<DijkstraMaxOutput>(null);
+  const [hResult,        setHResult]        = useState<HungarianOutput>(null);
+  const [kResult,        setKResult]        = useState<KruskalOutput>(null);
+
+  // ── Prompt modal ─────────────────────────────────────────────────────────────
   const [prompt, setPrompt] = useState<PromptCfg>({
     open: false, title: "", value: "", placeholder: "", error: "", onOk: null, onCancel: null,
   });
 
-  // ── Hooks ─────────────────────────────────────────────────────────────────────
+  // ── Hooks ───────────────────────────────────────────────────────────────────────
   const { toast, showToast }                                                   = useToast();
   const { animEdges, animNodes, isAnimating, animateCPM, animateJohnson, resetAnim } = useAnimation();
   const { graph, clearGraph }                                                  = useGraphState();
@@ -61,8 +69,14 @@ export default function GraphEditor() {
   const jOriginRef   = useRef<GNode | null>(null);
   const jDestRef     = useRef<GNode | null>(null);
   const jStepRef     = useRef<"origin" | "dest" | "done">("origin");
+  const dOriginRef   = useRef<GNode | null>(null);
+  const dDestRef     = useRef<GNode | null>(null);
+  const dStepRef     = useRef<"origin" | "dest" | "done">("origin");
   const cpmRef       = useRef<CPMOutput>(null);
-  const jRef         = useRef<JohnsonOutput>(null);
+  const jRef         = useRef<any>(null);
+  const dijkstraMinRef = useRef<DijkstraMinOutput>(null);
+  const dijkstraMaxRef = useRef<DijkstraMaxOutput>(null);
+  const hRef         = useRef<HungarianOutput>(null);
   const kRef         = useRef<KruskalOutput>(null);
   const animEdgesRef = useRef(animEdges);
   const animNodesRef = useRef(animNodes);
@@ -74,15 +88,21 @@ export default function GraphEditor() {
   useEffect(() => { jOriginRef.current   = jOrigin;   }, [jOrigin]);
   useEffect(() => { jDestRef.current     = jDest;     }, [jDest]);
   useEffect(() => { jStepRef.current     = jStep;     }, [jStep]);
+  useEffect(() => { dOriginRef.current   = dOrigin;   }, [dOrigin]);
+  useEffect(() => { dDestRef.current     = dDest;     }, [dDest]);
+  useEffect(() => { dStepRef.current     = dStep;     }, [dStep]);
   useEffect(() => { cpmRef.current       = cpmResult; }, [cpmResult]);
   useEffect(() => { jRef.current         = jResult;   }, [jResult]);
+  useEffect(() => { dijkstraMinRef.current = dijkstraMinResult; }, [dijkstraMinResult]);
+  useEffect(() => { dijkstraMaxRef.current = dijkstraMaxResult; }, [dijkstraMaxResult]);
+  useEffect(() => { hRef.current         = hResult;   }, [hResult]);
   useEffect(() => { kRef.current         = kResult;   }, [kResult]);
   useEffect(() => { animEdgesRef.current = animEdges; }, [animEdges]);
   useEffect(() => { animNodesRef.current = animNodes; }, [animNodes]);
   useEffect(() => { bgPresetRef.current  = bgPreset;  }, [bgPreset]);
   useEffect(() => { bgImageRef.current   = bgImage;   }, [bgImage]);
 
-  // ── Background draw ───────────────────────────────────────────────────────────
+  // ── Background draw ────────────────────────────────────────────────────────────
   const drawBg = useCallback(() => {
     const c = bgCanvasRef.current; if (!c) return;
     const ctx = c.getContext("2d"); if (!ctx) return;
@@ -97,7 +117,7 @@ export default function GraphEditor() {
     }
   }, []);
 
-  // ── Main canvas draw ──────────────────────────────────────────────────────────
+  // ── Main canvas draw ───────────────────��───────────────────────────────────────
   const draw = useCallback(() => {
     const canvas = canvasRef.current; if (!canvas) return;
     const ctx    = canvas.getContext("2d"); if (!ctx) return;
@@ -105,23 +125,32 @@ export default function GraphEditor() {
     const am     = algoModeRef.current;
     const cpm    = cpmRef.current;
     const jd     = jRef.current;
+    const dmr    = dijkstraMinRef.current;
+    const dmar   = dijkstraMaxRef.current;
+    const hr     = hRef.current;
     const kr     = kRef.current;
     const aE     = animEdgesRef.current;
     const aN     = animNodesRef.current;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // ── Edges ─────────────────────────────────────────────────────────────────
+    // ── Edges ──────────────────────────────────────────────────────────────
     data.edges.forEach((edge) => {
       const isAnim  = aE.has(edge);
       const isCrit  = (am === "cpm" || am === "johnson-max") && cpm && !cpm.error && cpm.critEdges.has(edge);
+      const isDMaxCrit = am === "dijkstra-max" && dmar && !dmar.error && dmar.critEdges.has(edge);
       const isJPath = am === "johnson-min" && jd && jd.error === false && jd.pathEdges.includes(edge);
+      const isDMinPath = am === "dijkstra-min" && dmr && dmr.error === false && dmr.pathEdges.includes(edge);
+      const isHAssign = (am === "hungarian-min" || am === "hungarian-max") && hr && !hr.error && hr.assignmentEdges.includes(edge);
       const isKMST  = am === "kruskal" && kr && kr.error === false && kr.mstEdges.includes(edge);
       
       let color = "#3a3a3a", lw = 1.5;
-      if (isAnim)       { color = (am === "cpm" || am === "johnson-max") ? P.red : am === "kruskal" ? P.yellow : P.cyan; lw = 3.5; }
+      if (isAnim)       { color = (am === "cpm" || am === "johnson-max" || am === "dijkstra-max") ? P.red : am === "kruskal" ? P.yellow : P.cyan; lw = 3.5; }
       else if (isCrit)  { color = P.red;  lw = 2.5; }
+      else if (isDMaxCrit) { color = P.red; lw = 2.5; }
       else if (isJPath) { color = P.cyan; lw = 2.5; }
+      else if (isDMinPath) { color = P.cyan; lw = 2.5; }
+      else if (isHAssign) { color = am === "hungarian-min" ? P.cyan : P.green; lw = 2.5; }
       else if (isKMST)  { color = P.yellow; lw = 2.5; }
       drawEdge(ctx, edge, color, lw, isAnim ? color : undefined);
     });
@@ -137,36 +166,55 @@ export default function GraphEditor() {
       ctx.restore();
     }
 
-    // ── Nodes ─────────────────────────────────────────────────────────────────
+    // ── Nodes ──────────────────────────────────────────────────────────────
     data.nodes.forEach((node) => {
       const isAnim  = aN.has(node.id);
       const isCritN = !!((am === "cpm" || am === "johnson-max") && cpm && !cpm.error && aE.size > 0 &&
         [...cpm.critEdges].some((e) => e.from.id === node.id || e.to.id === node.id));
+      const isDMaxCritN = !!(am === "dijkstra-max" && dmar && !dmar.error && aE.size > 0 &&
+        [...dmar.critEdges].some((e) => e.from.id === node.id || e.to.id === node.id));
       const isJN    = !!(am === "johnson-min" && jd && jd.error === false && aE.size > 0 && jd.pathNodes.includes(node.id));
+      const isDMinN = !!(am === "dijkstra-min" && dmr && dmr.error === false && dmr.pathNodes.includes(node.id));
+      const isHN    = !!((am === "hungarian-min" || am === "hungarian-max") && hr && !hr.error && hr.assignmentNodes.has(node.id));
+
+      const cpmDataForDisplay = (am === "cpm" || am === "johnson-max") && cpm && !cpm.error ? cpm : (am === "dijkstra-max" && dmar && !dmar.error ? dmar : null);
 
       drawNode(ctx, node, {
         selected:      node === data.selectedNode,
         tempStart:     node === data.tempStartNode,
-        cpmData:       (am === "cpm" || am === "johnson-max") && cpm && !cpm.error ? cpm : null,
+        cpmData:       cpmDataForDisplay,
         algoMode:      am,
-        animHighlight: isAnim || isCritN || isJN,
-        animColor:     (am === "cpm" || am === "johnson-max") ? P.red : P.cyan,
-        originNode:    jOriginRef.current,
-        destNode:      jDestRef.current,
+        animHighlight: isAnim || isCritN || isDMaxCritN || isJN || isDMinN || isHN,
+        animColor:     (am === "cpm" || am === "johnson-max" || am === "dijkstra-max") ? P.red : (am === "hungarian-min" || am === "hungarian-max") ? (am === "hungarian-min" ? P.cyan : P.green) : P.cyan,
+        originNode:    jOriginRef.current || dOriginRef.current,
+        destNode:      jDestRef.current || dDestRef.current,
       });
     });
 
-    // ── Error overlays ────────────────────────────────────────────────────────
-    if ((am === "cpm" || am === "johnson-max") && cpm && "error" in cpm && cpm.error) {
+    // ── Error overlays ───────────────────────────────────────────────────────────
+    if ((am === "cpm" || am === "johnson-max" || am === "dijkstra-max") && cpm && "error" in cpm && cpm.error) {
       ctx.fillStyle = P.red; ctx.font = "13px 'Courier New', monospace"; ctx.textAlign = "left";
       ctx.fillText("⚠ Ciclo detectado — El grafo debe ser un DAG válido.", 20, 60);
     }
+    if (am === "dijkstra-max" && dmar && "error" in dmar && dmar.error) {
+      ctx.fillStyle = P.red; ctx.font = "13px 'Courier New', monospace"; ctx.textAlign = "left";
+      ctx.fillText("⚠ Ciclo detectado — Dijkstra Máximo requiere un DAG válido.", 20, 60);
+    }
 
-    // ── Legends ───────────────────────────────────────────────────────────────
+    // ── Legends ─────────────────────────────────────────────────────────────
     if (am === "cpm" || am === "johnson-max") {
       ctx.font = "10px 'Courier New', monospace"; ctx.textAlign = "left";
       ctx.fillStyle = P.cyan; ctx.fillText("TE (temprano)", 14, canvas.height - 30);
       ctx.fillStyle = P.red;  ctx.fillText("TL (tardío)",   14, canvas.height - 16);
+    }
+    if (am === "dijkstra-max") {
+      ctx.font = "10px 'Courier New', monospace"; ctx.textAlign = "left";
+      ctx.fillStyle = P.cyan; ctx.fillText("TE (temprano)", 14, canvas.height - 30);
+      ctx.fillStyle = P.red;  ctx.fillText("TL (tardío)",   14, canvas.height - 16);
+    }
+    if (am === "johnson-min" || am === "dijkstra-min") {
+      ctx.font = "10px 'Courier New', monospace"; ctx.textAlign = "left";
+      ctx.fillStyle = P.cyan; ctx.fillText(am === "dijkstra-min" ? "Dijkstra - Camino Mínimo" : "Johnson - Camino Más Corto", 14, canvas.height - 16);
     }
     if (am === "hungarian-min" || am === "hungarian-max") {
       ctx.font = "10px 'Courier New', monospace"; ctx.textAlign = "left";
@@ -179,7 +227,7 @@ export default function GraphEditor() {
     }
   }, [graph]);
 
-  // ── Canvas events ─────────────────────────────────────────────────────────────
+  // ── Canvas events ────────────────────────────────────────────────────────────
   useEffect(() => {
     const canvas   = canvasRef.current;
     const bgCanvas = bgCanvasRef.current;
@@ -215,10 +263,16 @@ export default function GraphEditor() {
       const ce = !cn ? getEdge(x, y) : null;
       const am = algoModeRef.current;
 
-      if ((am === "johnson-min" || am === "johnson-max") && cn && modeRef.current !== "delete" && modeRef.current !== "edit") {
-        const step = jStepRef.current;
-        if (step === "origin") { setJOrigin(cn); setJStep("dest"); draw(); return; }
-        if (step === "dest" && cn.id !== jOriginRef.current?.id) { setJDest(cn); setJStep("done"); draw(); return; }
+      if ((am === "johnson-min" || am === "johnson-max" || am === "dijkstra-min" || am === "dijkstra-max") && cn && modeRef.current !== "delete" && modeRef.current !== "edit") {
+        if (am === "johnson-min" || am === "johnson-max") {
+          const step = jStepRef.current;
+          if (step === "origin") { setJOrigin(cn); setJStep("dest"); draw(); return; }
+          if (step === "dest" && cn.id !== jOriginRef.current?.id) { setJDest(cn); setJStep("done"); draw(); return; }
+        } else if (am === "dijkstra-min" || am === "dijkstra-max") {
+          const step = dStepRef.current;
+          if (step === "origin") { setDOrigin(cn); setDStep("dest"); draw(); return; }
+          if (step === "dest" && cn.id !== dOriginRef.current?.id) { setDDest(cn); setDStep("done"); draw(); return; }
+        }
       }
 
       switch (modeRef.current) {
@@ -316,9 +370,9 @@ export default function GraphEditor() {
   }, [draw, drawBg, graph, showToast]);
 
   useEffect(() => { window.dispatchEvent(new Event("resize")); }, [algoMode, bgPreset, bgImage]);
-  useEffect(() => { draw(); }, [animNodes, animEdges, cpmResult, jResult, kResult, jOrigin, jDest, draw]);
+  useEffect(() => { draw(); }, [animNodes, animEdges, cpmResult, jResult, dijkstraMinResult, dijkstraMaxResult, hResult, kResult, jOrigin, jDest, dOrigin, dDest, draw]);
 
-  // ── Solve ──────────────���──────────────────────────────────────────────────────
+  // ── Solve ──────────────────────────────────────────────────────────────────────
   const solve = () => {
     const { nodes, edges } = graph.current;
     if (nodes.length < 2) { showToast("⚠ Agrega al menos 2 nodos antes de resolver."); return; }
@@ -340,6 +394,23 @@ export default function GraphEditor() {
       setJResult(res); setPanelOpen(true);
       animateJohnson(res);
 
+    } else if (algoMode === "dijkstra-min") {
+      if (!dOrigin || !dDest) { showToast("⚠ Selecciona nodo origen y destino."); return; }
+      if (edges.some((e) => !e.weight || isNaN(Number(e.weight)))) { showToast("⚠ Aristas sin peso. Usa modo Editar."); return; }
+      const res = computeDijkstraMin(nodes, edges, dOrigin.id, dDest.id);
+      if (!res) { showToast("⚠ Sin datos para calcular."); return; }
+      if (res.error === "no_path") { showToast(`⚠ No existe ruta de "${dOrigin.label}" a "${dDest.label}".`); return; }
+      setDijkstraMinResult(res); setPanelOpen(true);
+      animateJohnson(res);
+
+    } else if (algoMode === "dijkstra-max") {
+      if (edges.some((e) => !e.weight || isNaN(Number(e.weight)))) { showToast("⚠ Aristas sin peso. Usa modo Editar."); return; }
+      const res = computeDijkstraMax(nodes, edges);
+      if (!res) { showToast("⚠ Sin datos para calcular."); return; }
+      if (res.error) { showToast("⚠ Ciclo detectado. Dijkstra Máximo requiere un DAG válido."); return; }
+      setDijkstraMaxResult(res); setPanelOpen(true);
+      animateCPM(res);
+
     } else if (algoMode === "hungarian-min" || algoMode === "hungarian-max") {
       if (edges.some((e) => !e.weight || isNaN(Number(e.weight)))) { showToast("⚠ Aristas sin peso. Usa modo Editar."); return; }
       const res = computeHungarian(nodes, edges, algoMode === "hungarian-min" ? "min" : "max");
@@ -359,12 +430,15 @@ export default function GraphEditor() {
     }
   };
 
-  // ── Replay ────────────────────────────────────────────────────────────────────
+  // ── Replay ──────────────────────────────────────────────────────────────────────
   const replay = () => {
     if (algoMode === "cpm" || algoMode === "johnson-max") {
       if (cpmResult && !cpmResult.error) animateCPM(cpmResult);
-    } else if (algoMode === "johnson-min") {
-      if (jResult && jResult.error === false) animateJohnson(jResult);
+    } else if (algoMode === "dijkstra-max") {
+      if (dijkstraMaxResult && !dijkstraMaxResult.error) animateCPM(dijkstraMaxResult);
+    } else if (algoMode === "johnson-min" || algoMode === "dijkstra-min") {
+      const jd = algoMode === "johnson-min" ? jResult : dijkstraMinResult;
+      if (jd && jd.error === false) animateJohnson(jd);
     }
   };
 
@@ -384,27 +458,30 @@ export default function GraphEditor() {
     setHResult(res); setPanelOpen(true);
   };
 
-  // ── Helpers ───────────────────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────────────
   const clearAll = () => {
     if (!confirm("¿Limpiar todo el lienzo?")) return;
     clearGraph();
-    setAlgoMode("none"); setCpmResult(null); setJResult(null); setHResult(null); setKResult(null);
+    setAlgoMode("none"); setCpmResult(null); setJResult(null); setDijkstraMinResult(null); setDijkstraMaxResult(null); setHResult(null); setKResult(null);
     setJOrigin(null); setJDest(null); setJStep("origin");
+    setDOrigin(null); setDDest(null); setDStep("origin");
     resetAnim(); setPanelOpen(false);
     window.dispatchEvent(new Event("resize"));
   };
 
   const clearAlgo = () => {
     setAlgoMode("none");
-    setCpmResult(null); setJResult(null); setHResult(null); setKResult(null);
+    setCpmResult(null); setJResult(null); setDijkstraMinResult(null); setDijkstraMaxResult(null); setHResult(null); setKResult(null);
     setJOrigin(null); setJDest(null); setJStep("origin");
+    setDOrigin(null); setDDest(null); setDStep("origin");
     resetAnim(); setPanelOpen(false);
     setTimeout(() => draw(), 16);
   };
 
   const selectAlgo = (id: string) => {
-    setCpmResult(null); setJResult(null); setHResult(null); setKResult(null);
+    setCpmResult(null); setJResult(null); setDijkstraMinResult(null); setDijkstraMaxResult(null); setHResult(null); setKResult(null);
     setJOrigin(null); setJDest(null); setJStep("origin");
+    setDOrigin(null); setDDest(null); setDStep("origin");
     resetAnim();
     setAlgoMode(id as AlgoMode);
   };
@@ -432,7 +509,7 @@ export default function GraphEditor() {
     if (type === "jpg") { const a = document.createElement("a"); a.href = url; a.download = "grafo.jpg"; a.click(); }
     else {
       const w = window.open("", "_blank"); if (!w) return;
-      w.document.write(`<!DOCTYPE html><html><head><title>Grafo</title><style>*{margin:0;padding:0;}body{background:#000;}img{width:100%;}@media print{img{width:100%;}}</style></head><body><img src="${url}" /></body></html>`);
+      w.document.write(`<!DOCTYPE html><html><head><title>Grafo</title><style>*{margin:0;padding:0;}body{background:#000;}img{width:100%;}@media print{img{width:100%;}}</style></head><body><img src="${url}"></body></html>`);
       w.document.close();
     }
   };
@@ -462,32 +539,35 @@ export default function GraphEditor() {
   };
 
   const isJohnson   = algoMode === "johnson-min" || algoMode === "johnson-max";
+  const isDijkstra  = algoMode === "dijkstra-min" || algoMode === "dijkstra-max";
   const isHungarian = algoMode === "hungarian-min" || algoMode === "hungarian-max";
 
-  // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div style={{ position: "relative", width: "100%", height: "calc(100vh - 80px)", overflow: "hidden", fontFamily: "'Courier New', monospace", background: P.bg }}>
 
       <canvas ref={bgCanvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
       <canvas ref={canvasRef}   style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block", cursor: mode === "add" ? "crosshair" : mode === "delete" ? "not-allowed" : "default" }} />
 
-      {/* Toast */}
       {toast && (
-        <div style={{ position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)", background: "rgba(255,0,85,0.2)", border: `1px solid ${P.red}`, borderRadius: 6, padding: "10px 16px", color: P.text, fontSize: 12, fontFamily: "'Courier New', monospace", zIndex: 100, whiteSpace: "pre-wrap", maxWidth: "80%" }}>
+        <div style={{ position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)", background: "rgba(255,0,85,0.2)", border: `1px solid ${P.red}`, borderRadius: 6, padding: "10px 16px", fontFamily: "'Courier New', monospace", fontSize: "12px", color: P.red, zIndex: 1000, maxWidth: "90%" }}>
           {toast}
         </div>
       )}
 
-      {/* Johnson node-selection hint */}
       {isJohnson && jStep !== "done" && (
-        <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(8,8,8,0.92)", border: `1px solid ${jStep === "origin" ? P.green : P.red}`, borderRadius: 6, padding: "8px 14px", color: P.text, fontSize: 11, fontFamily: "'Courier New', monospace", zIndex: 100, whiteSpace: "nowrap" }}>
+        <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(8,8,8,0.92)", border: `1px solid ${jStep === "origin" ? P.green : P.red}`, borderRadius: 6, padding: "8px 14px", fontFamily: "'Courier New', monospace", fontSize: "12px", color: jStep === "origin" ? P.green : P.red, zIndex: 999 }}>
           {jStep === "origin" ? "Haz clic en el nodo ORIGEN" : "Haz clic en el nodo DESTINO"}
         </div>
       )}
 
-      {/* Neutral mode label */}
+      {isDijkstra && dStep !== "done" && algoMode === "dijkstra-min" && (
+        <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(8,8,8,0.92)", border: `1px solid ${dStep === "origin" ? P.green : P.red}`, borderRadius: 6, padding: "8px 14px", fontFamily: "'Courier New', monospace", fontSize: "12px", color: dStep === "origin" ? P.green : P.red, zIndex: 999 }}>
+          {dStep === "origin" ? "Haz clic en el nodo ORIGEN" : "Haz clic en el nodo DESTINO"}
+        </div>
+      )}
+
       {algoMode === "none" && (
-        <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(8,8,8,0.7)", border: `1px solid ${P.border}`, borderRadius: 6, padding: "5px 14px", color: P.muted, fontSize: 10, fontFamily: "'Courier New', monospace", zIndex: 100, whiteSpace: "nowrap" }}>
+        <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(8,8,8,0.7)", border: `1px solid ${P.border}`, borderRadius: 6, padding: "5px 14px", fontFamily: "'Courier New', monospace", fontSize: "11px", color: P.muted, zIndex: 999 }}>
           PIZARRA LIBRE — auto-conexiones y aristas bidireccionales permitidas
         </div>
       )}
@@ -525,11 +605,14 @@ export default function GraphEditor() {
         edges={graph.current.edges}
         cpmResult={cpmResult}
         jResult={jResult}
+        dijkstraMinResult={dijkstraMinResult}
+        dijkstraMaxResult={dijkstraMaxResult}
         hResult={hResult}
         kResult={kResult}
-        originNode={jOrigin}
-        destNode={jDest}
+        originNode={jOrigin || dOrigin}
+        destNode={jDest || dDest}
         jStep={jStep}
+        dStep={dStep}
         isAnimating={isAnimating}
         onReplay={replay}
         onClose={() => setPanelOpen(false)}

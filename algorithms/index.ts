@@ -1,9 +1,9 @@
-export { computeCPM }                    from "./cpm";
-export { computeJohnson, wouldCycle }    from "./johnson";
-export { computeHungarian }              from "./hungarian";
-export { computeKruskal }                from "./kruskal";
+export { computeCPM }                           from "./cpm";
+export { computeJohnson, wouldCycle }           from "./johnson";
+export { computeDijkstraMin, computeDijkstraMax } from "./dijkstra";
+export { computeHungarian }                     from "./hungarian";
+export { computeKruskal }                       from "./kruskal";
 
-// ¡Nuevas exportaciones actualizadas!
 export { 
   ALGO_FAMILIES, 
   getFamily, 
@@ -26,4 +26,13 @@ export type {
   KruskalOutput,
   KruskalResult,
   KruskalError
+} from "@/types";
+
+export type {
+  DijkstraMinOutput,
+  DijkstraMinResult,
+  DijkstraMinError,
+  DijkstraMaxOutput,
+  DijkstraMaxResult,
+  DijkstraMaxError
 } from "@/types";

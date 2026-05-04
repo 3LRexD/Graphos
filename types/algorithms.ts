@@ -7,6 +7,8 @@ export type AlgoMode =
   | "cpm"
   | "johnson-min"
   | "johnson-max"
+  | "dijkstra-min"
+  | "dijkstra-max"
   | "hungarian-min"
   | "hungarian-max"
   | "kruskal";
@@ -21,7 +23,7 @@ export interface PromptCfg {
   onCancel:    (() => void) | null;
 }
 
-// ── CPM ────────────────────────────────────────────────────────────────────
+// ── CPM ────────────────────────────────────────────────────────────────
 export interface CPMResult {
   error:     false;
   TE:        Record<number, number>;
@@ -33,7 +35,7 @@ export interface CPMResult {
 export interface CPMError { error: true; }
 export type CPMOutput = CPMResult | CPMError | null;
 
-// ── Johnson ────────────────────────────────────────────────────────────────
+// ── Johnson ───────────────────────────────────────────────────────────
 export interface JohnsonResult {
   error:     false;
   dist:      Record<number, number>;
@@ -44,7 +46,30 @@ export interface JohnsonResult {
 export interface JohnsonError { error: "no_path"; }
 export type JohnsonOutput = JohnsonResult | JohnsonError | null;
 
-// ── Kruskal ────────────────────────────────────────────────────────────────
+// ── Dijkstra Min ───────────────────────────────────────────────────────
+export interface DijkstraMinResult {
+  error:     false;
+  dist:      Record<number, number>;
+  pathEdges: GEdge[];
+  pathNodes: number[];
+  totalCost: number;
+}
+export interface DijkstraMinError { error: "no_path"; }
+export type DijkstraMinOutput = DijkstraMinResult | DijkstraMinError | null;
+
+// ── Dijkstra Max (usa formato CPM para TE/TL) ───────────────────────────
+export interface DijkstraMaxResult {
+  error:     false;
+  TE:        Record<number, number>;
+  TL:        Record<number, number>;
+  maxTE:     number;
+  critEdges: Set<GEdge>;
+  topo:      number[];
+}
+export interface DijkstraMaxError { error: true; }
+export type DijkstraMaxOutput = DijkstraMaxResult | DijkstraMaxError | null;
+
+// ── Kruskal ───────────────────────────────────────────────────────────
 export interface KruskalResult {
   error:       false;
   mstEdges:    GEdge[];

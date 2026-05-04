@@ -10,6 +10,8 @@ export interface HungarianResult {
   agentNodes: GNode[];
   taskNodes: GNode[];
   steps: HungarianStep[];
+  assignmentEdges: GEdge[];
+  assignmentNodes: Set<number>;
 }
 
 export interface HungarianError {
@@ -197,13 +199,15 @@ function hungarianSolve(costMatrix: number[][]): [number, number][] {
   return result;
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
+// ─── Public API ─────────────────────────────────────────────────────────
 
 /**
  * Runs the Hungarian algorithm on the current graph.
  *
  * Convention: draw edges FROM agent nodes TO task nodes.
  * Edge weights = cost (minimise) or profit (maximise).
+ * 
+ * Returns solution edges and nodes for highlighting.
  */
 export function computeHungarian(
   nodes: GNode[],
@@ -270,6 +274,8 @@ export function computeHungarian(
   const pairs = hungarianSolve(squared);
 
   const assignments: HungarianResult["assignments"] = [];
+  const assignmentEdges: GEdge[] = [];
+  const assignmentNodes = new Set<number>();
   let totalCost = 0;
 
   pairs.forEach(([r, c]) => {
@@ -277,6 +283,7 @@ export function computeHungarian(
     const agent = agents[r];
     const task  = tasks[c];
     const cost  = rawMatrix[r][c] === BIG ? 0 : rawMatrix[r][c];
+    
     assignments.push({
       agentId:    agent.id,
       taskId:     task.id,
@@ -284,17 +291,30 @@ export function computeHungarian(
       taskLabel:  task.label,
       cost,
     });
+    
+    // Find the corresponding edge in the original edges array
+    const matchingEdge = edges.find((e) => e.from.id === agent.id && e.to.id === task.id);
+    if (matchingEdge) {
+      assignmentEdges.push(matchingEdge);
+    }
+    
+    // Add nodes to highlight
+    assignmentNodes.add(agent.id);
+    assignmentNodes.add(task.id);
+    
     totalCost += cost;
   });
 
   return {
-    error:       false,
+    error:             false,
     mode,
     assignments,
     totalCost,
-    matrix:      rawMatrix,
-    agentNodes:  agents,
-    taskNodes:   tasks,
+    matrix:            rawMatrix,
+    agentNodes:        agents,
+    taskNodes:         tasks,
     steps,
+    assignmentEdges,
+    assignmentNodes,
   };
 }

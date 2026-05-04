@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
-import type { GNode, GEdge, CPMOutput, JohnsonOutput, KruskalOutput } from "@/types";
+import type { GNode, GEdge, CPMOutput, DijkstraMaxOutput } from "@/types";
+import type { DijkstraMinOutput } from "@/types";
+import type { KruskalOutput } from "@/types";
 import type { HungarianOutput, HungarianResult } from "@/algorithms/hungarian";
 import { P } from "@/components/canvas/palette";
 import { getAlgoColor, getVariant, ALGO_FAMILIES } from "@/algorithms/registry";
@@ -13,12 +15,15 @@ interface Props {
   nodes:       GNode[];
   edges:       GEdge[];
   cpmResult:   CPMOutput;
-  jResult:     JohnsonOutput;
+  jResult:     any;
+  dijkstraMinResult?: DijkstraMinOutput;
+  dijkstraMaxResult?: DijkstraMaxOutput;
   hResult:     HungarianOutput;
   kResult:     KruskalOutput;
   originNode:  GNode | null;
   destNode:    GNode | null;
   jStep:       "origin" | "dest" | "done";
+  dStep?:      "origin" | "dest" | "done";
   isAnimating: boolean;
   onReplay:    () => void;
   onClose:     () => void;
@@ -28,8 +33,8 @@ type Tab = "result" | "steps" | "console";
 
 export default function ExecutionPanel({
   open, algoMode, nodes, edges,
-  cpmResult, jResult, hResult, kResult,
-  originNode, destNode, jStep,
+  cpmResult, jResult, dijkstraMinResult, dijkstraMaxResult, hResult, kResult,
+  originNode, destNode, jStep, dStep,
   isAnimating, onReplay, onClose,
 }: Props) {
   const [tab, setTab] = useState<Tab>("result");
@@ -48,10 +53,8 @@ export default function ExecutionPanel({
 
   return (
     <>
-      {/* Backdrop */}
       {open && <div onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.3)" }} />}
 
-      {/* Drawer */}
       <div style={{
         position:      "absolute",
         top:           0,
@@ -81,7 +84,6 @@ export default function ExecutionPanel({
             <button onClick={onClose} style={{ marginLeft: "auto", background: "none", border: "none", color: P.muted, cursor: "pointer", fontSize: 15 }}>✕</button>
           </div>
 
-          {/* Tab bar */}
           <div style={{ display: "flex", gap: 4 }}>
             {tabs.map((t) => (
               <button
@@ -105,7 +107,6 @@ export default function ExecutionPanel({
               </button>
             ))}
 
-            {/* Replay */}
             {!isNeutral && (
               <button
                 onClick={onReplay}
@@ -140,17 +141,20 @@ export default function ExecutionPanel({
               nodes={nodes} edges={edges}
               cpmResult={cpmResult}
               jResult={jResult}
+              dijkstraMinResult={dijkstraMinResult}
+              dijkstraMaxResult={dijkstraMaxResult}
               hResult={hResult}
               kResult={kResult}
               originNode={originNode}
               destNode={destNode}
               jStep={jStep}
+              dStep={dStep}
               accentColor={accentColor}
             />
           ) : tab === "steps" ? (
-            <StepsTab algoMode={algoMode} cpmResult={cpmResult} jResult={jResult} hResult={hResult} accentColor={accentColor} />
+            <StepsTab algoMode={algoMode} cpmResult={cpmResult} jResult={jResult} dijkstraMinResult={dijkstraMinResult} dijkstraMaxResult={dijkstraMaxResult} hResult={hResult} accentColor={accentColor} />
           ) : (
-            <ConsoleTab algoMode={algoMode} cpmResult={cpmResult} jResult={jResult} hResult={hResult} kResult={kResult} nodes={nodes} accentColor={accentColor} />
+            <ConsoleTab algoMode={algoMode} cpmResult={cpmResult} jResult={jResult} dijkstraMinResult={dijkstraMinResult} dijkstraMaxResult={dijkstraMaxResult} hResult={hResult} kResult={kResult} nodes={nodes} accentColor={accentColor} />
           )}
         </div>
       </div>
@@ -158,7 +162,6 @@ export default function ExecutionPanel({
   );
 }
 
-// ── Neutral placeholder ────────────────────────────────────────────────────────
 function NeutralState() {
   return (
     <div style={{ textAlign: "center", marginTop: "3rem", fontFamily: "'Courier New', monospace" }}>
@@ -170,10 +173,11 @@ function NeutralState() {
   );
 }
 
-// ── Result tab ─────────────────────────────────────────────────────────────────
-function ResultTab({ algoMode, nodes, edges, cpmResult, jResult, hResult, kResult, originNode, destNode, jStep, accentColor }: any) {
+function ResultTab({ algoMode, nodes, edges, cpmResult, jResult, dijkstraMinResult, dijkstraMaxResult, hResult, kResult, originNode, destNode, jStep, dStep, accentColor }: any) {
   const isCPM      = algoMode === "cpm" || algoMode === "johnson-max";
   const isJohnson  = algoMode === "johnson-min";
+  const isDijkstraMin = algoMode === "dijkstra-min";
+  const isDijkstraMax = algoMode === "dijkstra-max";
   const isHungarian = algoMode === "hungarian-min" || algoMode === "hungarian-max";
   const isKruskal  = algoMode === "kruskal";
 
@@ -181,21 +185,17 @@ function ResultTab({ algoMode, nodes, edges, cpmResult, jResult, hResult, kResul
     if ("error" in cpmResult && cpmResult.error) return <Err msg="Ciclo detectado — CPM requiere un DAG válido." />;
     if (!cpmResult.error) {
       const res = cpmResult;
-
-      // Filtrar nodos activos (que tienen aristas) para la tabla de actividades
       const activeNodes = nodes
         .filter((n: GNode) => edges.some((e: typeof edges[number]) => e.from.id === n.id || e.to.id === n.id))
         .sort((a: GNode, b: GNode) => a.id - b.id);
 
       return (
         <div style={{ fontFamily: "'Courier New', monospace" }}>
-          
-          {/* ── TABLA 1: ACTIVIDADES Y PREDECESORES ── */}
           {activeNodes.length > 0 && (
             <div style={{ marginBottom: "2.5rem" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
-                  <tr style={{ borderBottom: `2px solid #e11d48` /* Borde rosado fuerte */ }}>
+                  <tr style={{ borderBottom: `2px solid #e11d48` }}>
                     {(["Actividad", "Predecesor", "Tiempo"] as const).map((h) => (
                       <th key={h} style={{ padding: "13px 8px", color: "#e11d48", fontWeight: "bold", fontSize: 13, textAlign: "center" }}>
                         {h}
@@ -210,21 +210,18 @@ function ResultTab({ algoMode, nodes, edges, cpmResult, jResult, hResult, kResul
                     const dur      = incoming.length > 0
                       ? incoming[0].weight
                       : (edges.find((e: typeof edges[number]) => e.from.id === nd.id)?.weight || "0");
-                      
+                       
                     return (
                       <tr key={idx} style={{
                         borderBottom: `1px solid #1a1a1a`,
-                        background: idx % 2 === 0 ? "transparent" : "#111", // Intercalado sutil oscuro
+                        background: idx % 2 === 0 ? "transparent" : "#111",
                       }}>
-                        {/* Actividad en blanco grueso */}
                         <td style={{ padding: "14px 8px", textAlign: "center", color: "#fff", fontWeight: "bold", fontSize: 15 }}>
                           {nd.label}
                         </td>
-                        {/* Predecesor sutil */}
                         <td style={{ padding: "14px 8px", textAlign: "center", color: "#888", fontSize: 14 }}>
                           {preds}
                         </td>
-                        {/* Tiempo en cyan vibrante */}
                         <td style={{ padding: "14px 8px", textAlign: "center", color: "#06b6d4", fontWeight: "bold", fontSize: 15 }}>
                           {dur}
                         </td>
@@ -236,7 +233,6 @@ function ResultTab({ algoMode, nodes, edges, cpmResult, jResult, hResult, kResul
             </div>
           )}
 
-          {/* ── TABLA 2: RESULTADOS FINALES CPM ── */}
           <SectionLabel label="RESULTADOS FINALES — PERT/CPM" />
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
             <thead>
@@ -309,6 +305,135 @@ function ResultTab({ algoMode, nodes, edges, cpmResult, jResult, hResult, kResul
     return <Hint msg={jStep === "origin" ? "Haz clic en el nodo ORIGEN en el grafo." : jStep === "dest" ? "Haz clic en el nodo DESTINO en el grafo." : "Presiona ▶ Resolver."} />;
   }
 
+  if (isDijkstraMin && dijkstraMinResult) {
+    if (dijkstraMinResult.error === "no_path") return <Err msg="No existe ruta entre los nodos seleccionados." />;
+    if (dijkstraMinResult.error === false) {
+      const res = dijkstraMinResult;
+      return (
+        <div style={{ fontFamily: "'Courier New', monospace" }}>
+          <SelectionBadges origin={originNode} dest={destNode} />
+          <SectionLabel label="RUTA ÓPTIMA — CAMINO MÍNIMO" />
+          <PathRow nodes={nodes} pathNodes={res.pathNodes} color={accentColor} />
+          <SectionLabel label="DISTANCIAS MÍNIMAS" />
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${P.border}` }}>
+                {["Nodo", "Distancia", "En Ruta"].map((h) => (
+                  <th key={h} style={{ padding: "6px 5px", color: P.purpleBright, fontWeight: 400, fontSize: 10, textAlign: "center" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[...nodes].sort((a: GNode, b: GNode) => a.id - b.id).map((nd: GNode, i: number) => {
+                const d = res.dist[nd.id];
+                const on = res.pathNodes.includes(nd.id);
+                return (
+                  <tr key={i} style={{ borderBottom: "1px solid #181818", background: on ? `${accentColor}22` : "transparent" }}>
+                    <td style={{ padding: "6px 5px", textAlign: "center", color: on ? P.white : P.text, fontWeight: on ? "bold" : "normal" }}>{nd.label}</td>
+                    <td style={{ padding: "6px 5px", textAlign: "center", color: d === Infinity ? P.muted : accentColor }}>{d === Infinity ? "∞" : d}</td>
+                    <td style={{ padding: "6px 5px", textAlign: "center", color: on ? accentColor : P.muted, fontSize: 10 }}>{on ? "●" : "○"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <TotalBox 
+            label="Costo Total Mínimo:" 
+            value={`${res.totalCost} unidades`} 
+            color={accentColor} 
+          />
+        </div>
+      );
+    }
+    const stepMsg = dStep === "origin" ? "Haz clic en el nodo ORIGEN en el grafo." : dStep === "dest" ? "Haz clic en el nodo DESTINO en el grafo." : "Presiona ▶ Resolver.";
+    return <Hint msg={stepMsg} />;
+  }
+
+  if (isDijkstraMax && dijkstraMaxResult) {
+    if ("error" in dijkstraMaxResult && dijkstraMaxResult.error) return <Err msg="Ciclo detectado — Dijkstra Máximo requiere un DAG válido." />;
+    if (!dijkstraMaxResult.error) {
+      const res = dijkstraMaxResult;
+      const activeNodes = nodes
+        .filter((n: GNode) => edges.some((e: typeof edges[number]) => e.from.id === n.id || e.to.id === n.id))
+        .sort((a: GNode, b: GNode) => a.id - b.id);
+
+      return (
+        <div style={{ fontFamily: "'Courier New', monospace" }}>
+          {activeNodes.length > 0 && (
+            <div style={{ marginBottom: "2.5rem" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: `2px solid #e11d48` }}>
+                    {(["Actividad", "Predecesor", "Tiempo"] as const).map((h) => (
+                      <th key={h} style={{ padding: "13px 8px", color: "#e11d48", fontWeight: "bold", fontSize: 13, textAlign: "center" }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeNodes.map((nd: GNode, idx: number) => {
+                    const incoming = edges.filter((e: typeof edges[number]) => e.to.id === nd.id);
+                    const preds    = incoming.map((e: typeof edges[number]) => e.from.label).join(", ") || "-";
+                    const dur      = incoming.length > 0
+                      ? incoming[0].weight
+                      : (edges.find((e: typeof edges[number]) => e.from.id === nd.id)?.weight || "0");
+                       
+                    return (
+                      <tr key={idx} style={{
+                        borderBottom: `1px solid #1a1a1a`,
+                        background: idx % 2 === 0 ? "transparent" : "#111",
+                      }}>
+                        <td style={{ padding: "14px 8px", textAlign: "center", color: "#fff", fontWeight: "bold", fontSize: 15 }}>
+                          {nd.label}
+                        </td>
+                        <td style={{ padding: "14px 8px", textAlign: "center", color: "#888", fontSize: 14 }}>
+                          {preds}
+                        </td>
+                        <td style={{ padding: "14px 8px", textAlign: "center", color: "#06b6d4", fontWeight: "bold", fontSize: 15 }}>
+                          {dur}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <SectionLabel label="RESULTADOS FINALES — DIJKSTRA MÁXIMO (CPM)" />
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${P.border}` }}>
+                {["Nodo", "TE", "TL", "Holgura", "Crítico"].map((h) => (
+                  <th key={h} style={{ padding: "6px 5px", color: P.purpleBright, fontWeight: 400, fontSize: 10, textAlign: "center" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[...nodes].sort((a: GNode, b: GNode) => a.id - b.id).map((nd: GNode, i: number) => {
+                const te = res.TE[nd.id] ?? 0;
+                const tl = res.TL[nd.id] === Infinity ? Infinity : (res.TL[nd.id] ?? 0);
+                const slack = tl === Infinity ? Infinity : tl - te;
+                const crit  = slack === 0;
+                return (
+                  <tr key={i} style={{ borderBottom: "1px solid #181818", background: crit ? P.redDim : "transparent" }}>
+                    <td style={{ padding: "6px 5px", textAlign: "center", color: crit ? P.red : P.text, fontWeight: crit ? "bold" : "normal" }}>{nd.label}</td>
+                    <td style={{ padding: "6px 5px", textAlign: "center", color: P.cyan }}>{te}</td>
+                    <td style={{ padding: "6px 5px", textAlign: "center", color: P.red }}>{tl === Infinity ? "∞" : tl}</td>
+                    <td style={{ padding: "6px 5px", textAlign: "center", color: crit ? P.red : P.muted, fontWeight: crit ? "bold" : "normal" }}>{slack === Infinity ? "∞" : slack}</td>
+                    <td style={{ padding: "6px 5px", textAlign: "center", color: crit ? P.red : P.muted, fontSize: 10 }}>{crit ? "●" : "○"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <TotalBox label="Duración Total Máxima:" value={`${res.maxTE} unidades`} color={accentColor} />
+        </div>
+      );
+    }
+  }
+
   if (isHungarian && hResult) {
     if (hResult.error === "empty")         return <Err msg="No hay nodos." />;
     if (hResult.error === "no_edges")      return <Err msg="Agrega aristas con pesos." />;
@@ -318,15 +443,11 @@ function ResultTab({ algoMode, nodes, edges, cpmResult, jResult, hResult, kResul
     
     return (
       <div style={{ fontFamily: "'Courier New', monospace" }}>
-        
-        {/* ── MATRIZ DE COSTOS RECUPERADA (Con el estilo compacto) ── */}
-       <SectionLabel label="MATRIZ DE COSTOS / GANANCIAS" />
+        <SectionLabel label="MATRIZ DE COSTOS / GANANCIAS" />
         <div style={{ overflowX: "auto", marginBottom: "2rem" }}>
-          {/* Quitamos width: 100% y margin auto. Alineada a la izquierda y súper compacta */}
           <table style={{ borderCollapse: "collapse", fontSize: 13, color: P.text }}>
             <thead>
               <tr>
-                {/* Borde inferior sutil solo debajo de la esquina */}
                 <th style={{ padding: "8px 16px 8px 4px", color: P.muted, fontSize: 11, textAlign: "left", borderBottom: `1px solid #333` }}>↓ \ →</th>
                 {res.taskNodes.map((t: any) => (
                   <th key={t.id} style={{ padding: "8px 20px", color: P.purpleBright, textAlign: "center" }}>{t.label}</th>
@@ -336,7 +457,6 @@ function ResultTab({ algoMode, nodes, edges, cpmResult, jResult, hResult, kResul
             <tbody>
               {res.agentNodes.map((agent: any, r: number) => (
                 <tr key={agent.id}>
-                  {/* Borde inferior sutil solo en la columna de los agentes (P1, P2, P3) */}
                   <td style={{ padding: "10px 16px 10px 4px", color: P.purpleBright, fontWeight: "bold", textAlign: "left", borderBottom: "1px solid #1a1a1a" }}>{agent.label}</td>
                   
                   {res.taskNodes.map((task: any, c: number) => {
@@ -346,10 +466,9 @@ function ResultTab({ algoMode, nodes, edges, cpmResult, jResult, hResult, kResul
                     
                     return (
                       <td key={task.id} style={{
-                        padding: "10px 20px", // Padding amplio para que los bloques se vean bien rectangulares
+                        padding: "10px 20px",
                         textAlign: "center",
                         verticalAlign: "middle",
-                        // Ahora sí le ponemos el fondo directo al TD porque la tabla no está estirada
                         background: isAssigned ? `${accentColor}18` : "transparent",
                         color: isAssigned ? accentColor : (isBig ? "#333" : P.text),
                         border: isAssigned ? `1px solid ${accentColor}44` : "1px solid transparent",
@@ -366,21 +485,18 @@ function ResultTab({ algoMode, nodes, edges, cpmResult, jResult, hResult, kResul
           </table>
         </div>
 
-        {/* ── ASIGNACIÓN ÓPTIMA (Estilo de tu imagen) ── */}
         <SectionLabel label="ASIGNACIÓN ÓPTIMA" />
         {res.assignments.map((a: any, i: number) => (
           <div key={i} style={{ 
             display: "flex", alignItems: "center", padding: "12px 14px", 
             background: "transparent", border: `1px solid #222`, borderRadius: 6, marginBottom: 8 
           }}>
-            {/* Badge Agente (Púrpura) */}
             <span style={{ padding: "4px 10px", borderRadius: 4, background: `${P.purple}18`, border: `1px solid ${P.purple}55`, color: P.purpleBright, fontSize: 13, fontWeight: "bold" }}>
               {a.agentLabel}
             </span>
             
             <span style={{ color: accentColor, margin: "0 12px" }}>→</span>
             
-            {/* Badge Tarea (Color Dinámico: Cyan o Verde) */}
             <span style={{ padding: "4px 10px", borderRadius: 4, background: `${accentColor}18`, border: `1px solid ${accentColor}55`, color: accentColor, fontSize: 13, fontWeight: "bold" }}>
               {a.taskLabel}
             </span>
@@ -444,11 +560,8 @@ function ResultTab({ algoMode, nodes, edges, cpmResult, jResult, hResult, kResul
   return <Hint msg="Presiona ▶ Resolver para ver los resultados." />;
 }
 
-// ── Steps tab ──────────────────────────────────────────────────────────────────
-function StepsTab({ algoMode, cpmResult, jResult, hResult, accentColor }: any) {
+function StepsTab({ algoMode, cpmResult, jResult, dijkstraMinResult, dijkstraMaxResult, hResult, accentColor }: any) {
   const isHungarian = algoMode === "hungarian-min" || algoMode === "hungarian-max";
-  
-  // Extraemos los pasos si estamos en el método húngaro y no hay errores
   const steps = isHungarian && hResult && !hResult.error ? hResult.steps : null;
 
   if (!steps || steps.length === 0) {
@@ -458,22 +571,18 @@ function StepsTab({ algoMode, cpmResult, jResult, hResult, accentColor }: any) {
   return (
     <div style={{ fontFamily: "'Courier New', monospace" }}>
       {steps.map((step: any, i: number) => (
-        <div key={i} style={{ marginBottom: "1.8rem" }}> {/* 1. Mayor separación entre cada paso */}
-          
-          {/* 2. Texto de descripción más grande (fontSize: 13) y en negrita */}
+        <div key={i} style={{ marginBottom: "1.8rem" }}>
           <div style={{ fontSize: 12, color: accentColor, marginBottom: 8, letterSpacing: 1, fontWeight: "bold" }}>
             {i + 1}. {step.description}
           </div>
           
           <div style={{ overflowX: "auto" }}>
-            {/* 3. Números de la tabla más grandes (fontSize: 13) */}
             <table style={{ borderCollapse: "collapse", fontSize: 13 }}>
               <tbody>
                 {step.matrix.map((row: number[], r: number) => (
                   <tr key={r}>
                     {row.map((val: number, c: number) => (
                       <td key={c} style={{
-                        /* 4. Celdas más amplias (padding: 8px de alto y 14px de ancho) */
                         padding: "8px 14px", 
                         textAlign: "center",
                         border:     `1px solid #333`, 
@@ -489,18 +598,18 @@ function StepsTab({ algoMode, cpmResult, jResult, hResult, accentColor }: any) {
               </tbody>
             </table>
           </div>
-
         </div>
       ))}
     </div>
   );
 }
 
-// ── Console tab ────────────────────────────────────────────────────────────────
-function ConsoleTab({ algoMode, cpmResult, jResult, hResult, kResult, nodes, accentColor }: any) {
+function ConsoleTab({ algoMode, cpmResult, jResult, dijkstraMinResult, dijkstraMaxResult, hResult, kResult, nodes, accentColor }: any) {
   const lines: string[] = [];
   const isCPM      = algoMode === "cpm" || algoMode === "johnson-max";
   const isJohnson  = algoMode === "johnson-min";
+  const isDijkstraMin = algoMode === "dijkstra-min";
+  const isDijkstraMax = algoMode === "dijkstra-max";
   const isHungarian = algoMode === "hungarian-min" || algoMode === "hungarian-max";
   const isKruskal  = algoMode === "kruskal";
 
@@ -521,6 +630,23 @@ function ConsoleTab({ algoMode, cpmResult, jResult, hResult, kResult, nodes, acc
     lines.push(`[JOHNSON] Costo total: ${jResult.totalCost}`);
     lines.push(`[JOHNSON] Ruta: ${jResult.pathNodes.join(" → ")}`);
     lines.push(`[JOHNSON] Aristas en ruta: ${jResult.pathEdges.length}`);
+  } else if (isDijkstraMin && dijkstraMinResult && dijkstraMinResult.error === false) {
+    lines.push(`[DIJKSTRA MIN] Origen → Destino`);
+    lines.push(`[DIJKSTRA MIN] Costo total: ${dijkstraMinResult.totalCost}`);
+    lines.push(`[DIJKSTRA MIN] Ruta: ${dijkstraMinResult.pathNodes.join(" → ")}`);
+    lines.push(`[DIJKSTRA MIN] Aristas en ruta: ${dijkstraMinResult.pathEdges.length}`);
+  } else if (isDijkstraMax && dijkstraMaxResult && !dijkstraMaxResult.error) {
+    const res = dijkstraMaxResult;
+    lines.push(`[DIJKSTRA MAX] Modo CPM-like`);
+    lines.push(`[DIJKSTRA MAX] Nodos procesados: ${nodes.length}`);
+    lines.push(`[DIJKSTRA MAX] Duración máxima: ${res.maxTE}`);
+    lines.push(`[DIJKSTRA MAX] Aristas críticas: ${res.critEdges.size}`);
+    lines.push(`[DIJKSTRA MAX] Orden topológico: ${res.topo.join(" → ")}`);
+    [...nodes].sort((a: GNode, b: GNode) => a.id - b.id).forEach((n: GNode) => {
+      const te = res.TE[n.id] ?? 0, tl = res.TL[n.id];
+      const slack = tl === Infinity ? "∞" : tl - te;
+      lines.push(`  Nodo ${n.label}: TE=${te} TL=${tl === Infinity ? "∞" : tl} Holgura=${slack}${slack === 0 ? " [CRÍTICO]" : ""}`);
+    });
   } else if (isHungarian && hResult && !hResult.error) {
     const res = hResult as HungarianResult;
     lines.push(`[HUNGARIAN] Modo: ${algoMode === "hungarian-min" ? "Minimizar" : "Maximizar"}`);
@@ -562,7 +688,6 @@ function ConsoleTab({ algoMode, cpmResult, jResult, hResult, kResult, nodes, acc
   );
 }
 
-// ── Shared sub-components ──────────────────────────────────────────────────────
 function SectionLabel({ label }: { label: string }) {
   return <div style={{ fontSize: 9, letterSpacing: 2, color: P.muted, marginBottom: 8, marginTop: 14 }}>{label}</div>;
 }
@@ -584,8 +709,8 @@ function SelectionBadges({ origin, dest }: { origin: GNode | null; dest: GNode |
   if (!origin && !dest) return null;
   return (
     <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-      {origin && <div style={{ flex: 1, padding: "6px 10px", background: P.greenDim, border: `1px solid ${P.green}44`, borderRadius: 4, fontSize: 11, fontFamily: "'Courier New', monospace" }}><span style={{ color: P.green }}>▶ Origen:</span> {origin.label}</div>}
-      {dest   && <div style={{ flex: 1, padding: "6px 10px", background: P.redDim,   border: `1px solid ${P.red}44`,   borderRadius: 4, fontSize: 11, fontFamily: "'Courier New', monospace" }}><span style={{ color: P.red }}>◀ Destino:</span> {dest.label}</div>}
+      {origin && <div style={{ flex: 1, padding: "6px 10px", background: P.greenDim, border: `1px solid ${P.green}44`, borderRadius: 4, fontSize: 11, fontFamily: "'Courier New', monospace" }}><span style={{ color: P.muted }}>Origen: </span><strong style={{ color: P.green }}>{origin.label}</strong></div>}
+      {dest   && <div style={{ flex: 1, padding: "6px 10px", background: P.redDim,   border: `1px solid ${P.red}44`,   borderRadius: 4, fontSize: 11, fontFamily: "'Courier New', monospace" }}><span style={{ color: P.muted }}>Destino: </span><strong style={{ color: P.red }}>{dest.label}</strong></div>}
     </div>
   );
 }
