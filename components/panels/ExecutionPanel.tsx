@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import type { GNode, GEdge, CPMOutput, JohnsonOutput } from "@/types";
+import type { GNode, GEdge, CPMOutput, JohnsonOutput, KruskalOutput } from "@/types";
 import type { HungarianOutput, HungarianResult } from "@/algorithms/hungarian";
 import { P } from "@/components/canvas/palette";
 import { getAlgoColor, getVariant, ALGO_FAMILIES } from "@/algorithms/registry";
@@ -15,6 +15,7 @@ interface Props {
   cpmResult:   CPMOutput;
   jResult:     JohnsonOutput;
   hResult:     HungarianOutput;
+  kResult:     KruskalOutput;
   originNode:  GNode | null;
   destNode:    GNode | null;
   jStep:       "origin" | "dest" | "done";
@@ -27,7 +28,7 @@ type Tab = "result" | "steps" | "console";
 
 export default function ExecutionPanel({
   open, algoMode, nodes, edges,
-  cpmResult, jResult, hResult,
+  cpmResult, jResult, hResult, kResult,
   originNode, destNode, jStep,
   isAnimating, onReplay, onClose,
 }: Props) {
@@ -140,6 +141,7 @@ export default function ExecutionPanel({
               cpmResult={cpmResult}
               jResult={jResult}
               hResult={hResult}
+              kResult={kResult}
               originNode={originNode}
               destNode={destNode}
               jStep={jStep}
@@ -148,7 +150,7 @@ export default function ExecutionPanel({
           ) : tab === "steps" ? (
             <StepsTab algoMode={algoMode} cpmResult={cpmResult} jResult={jResult} hResult={hResult} accentColor={accentColor} />
           ) : (
-            <ConsoleTab algoMode={algoMode} cpmResult={cpmResult} jResult={jResult} hResult={hResult} nodes={nodes} accentColor={accentColor} />
+            <ConsoleTab algoMode={algoMode} cpmResult={cpmResult} jResult={jResult} hResult={hResult} kResult={kResult} nodes={nodes} accentColor={accentColor} />
           )}
         </div>
       </div>
@@ -169,10 +171,11 @@ function NeutralState() {
 }
 
 // ── Result tab ─────────────────────────────────────────────────────────────────
-function ResultTab({ algoMode, nodes, edges, cpmResult, jResult, hResult, originNode, destNode, jStep, accentColor }: any) {
+function ResultTab({ algoMode, nodes, edges, cpmResult, jResult, hResult, kResult, originNode, destNode, jStep, accentColor }: any) {
   const isCPM      = algoMode === "cpm" || algoMode === "johnson-max";
   const isJohnson  = algoMode === "johnson-min";
   const isHungarian = algoMode === "hungarian-min" || algoMode === "hungarian-max";
+  const isKruskal  = algoMode === "kruskal";
 
   if (isCPM && cpmResult) {
     if ("error" in cpmResult && cpmResult.error) return <Err msg="Ciclo detectado — CPM requiere un DAG válido." />;
@@ -383,25 +386,64 @@ function ResultTab({ algoMode, nodes, edges, cpmResult, jResult, hResult, origin
             </span>
             
             <span style={{ marginLeft: "auto", color: P.muted, fontSize: 11 }}>
-              {algoMode === "hungarian-min" ? "costo:" : "ganancia:"}
-              <strong style={{ color: accentColor, marginLeft: 6, fontSize: 13 }}>{a.cost}</strong>
+              Costo: <strong style={{ color: accentColor, marginLeft: 6, fontSize: 13 }}>{a.cost}</strong>
             </span>
           </div>
         ))}
         
         <TotalBox
-          label={algoMode === "hungarian-min" ? "Costo Total Mínimo:" : "Ganancia Total Máxima:"}
+          label="Costo Total Mínimo:"
           value={`${res.totalCost} unidades`}
           color={accentColor}
         />
       </div>
     );
-}
+  }
+
+  if (isKruskal && kResult) {
+    if ("error" in kResult && kResult.error) {
+      const errorMsg = kResult.error === "disconnected_graph" 
+        ? "El grafo no está conectado. Todos los nodos deben estar conectados."
+        : "Aristas insuficientes para formar un árbol de expansión.";
+      return <Err msg={errorMsg} />;
+    }
+    if (kResult.error === false) {
+      const res = kResult;
+      return (
+        <div style={{ fontFamily: "'Courier New', monospace" }}>
+          <SectionLabel label="ARISTAS DEL ÁRBOL MÍNIMO (MST)" />
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${P.border}` }}>
+                {["Origen", "Destino", "Peso"].map((h) => (
+                  <th key={h} style={{ padding: "6px 5px", color: P.purpleBright, fontWeight: 400, fontSize: 10, textAlign: "center" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {res.mstEdges.map((edge: GEdge, i: number) => (
+                <tr key={i} style={{ borderBottom: "1px solid #181818", background: i % 2 === 0 ? "transparent" : "#0f0f0f" }}>
+                  <td style={{ padding: "6px 5px", textAlign: "center", color: P.cyan }}>{edge.from.label}</td>
+                  <td style={{ padding: "6px 5px", textAlign: "center", color: P.cyan }}>{edge.to.label}</td>
+                  <td style={{ padding: "6px 5px", textAlign: "center", color: P.yellow, fontWeight: "bold" }}>{edge.weight}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <TotalBox label="Peso Total del MST:" value={`${res.totalWeight} unidades`} color={P.yellow} />
+          <SectionLabel label="INFORMACIÓN DEL MST" />
+          <div style={{ padding: "10px 12px", background: P.yellowDim, border: `1px solid ${P.yellow}44`, borderRadius: 5, fontSize: 11, color: P.text }}>
+            <div style={{ marginBottom: 6 }}>✓ Aristas seleccionadas: <strong style={{ color: P.yellow }}>{res.mstEdges.length}</strong></div>
+            <div>✓ Nodos conectados: <strong style={{ color: P.yellow }}>{nodes.length}</strong></div>
+          </div>
+        </div>
+      );
+    }
+  }
 
   return <Hint msg="Presiona ▶ Resolver para ver los resultados." />;
 }
 
-// ── Steps tab ──────────────────────────────────────────────────────────────────
 // ── Steps tab ──────────────────────────────────────────────────────────────────
 function StepsTab({ algoMode, cpmResult, jResult, hResult, accentColor }: any) {
   const isHungarian = algoMode === "hungarian-min" || algoMode === "hungarian-max";
@@ -453,12 +495,14 @@ function StepsTab({ algoMode, cpmResult, jResult, hResult, accentColor }: any) {
     </div>
   );
 }
+
 // ── Console tab ────────────────────────────────────────────────────────────────
-function ConsoleTab({ algoMode, cpmResult, jResult, hResult, nodes, accentColor }: any) {
+function ConsoleTab({ algoMode, cpmResult, jResult, hResult, kResult, nodes, accentColor }: any) {
   const lines: string[] = [];
   const isCPM      = algoMode === "cpm" || algoMode === "johnson-max";
   const isJohnson  = algoMode === "johnson-min";
   const isHungarian = algoMode === "hungarian-min" || algoMode === "hungarian-max";
+  const isKruskal  = algoMode === "kruskal";
 
   if (isCPM && cpmResult && !cpmResult.error) {
     const res = cpmResult;
@@ -484,6 +528,15 @@ function ConsoleTab({ algoMode, cpmResult, jResult, hResult, nodes, accentColor 
     lines.push(`[HUNGARIAN] Total: ${res.totalCost}`);
     res.assignments.forEach((a) => {
       lines.push(`  ${a.agentLabel} → ${a.taskLabel}  (${a.cost})`);
+    });
+  } else if (isKruskal && kResult && kResult.error === false) {
+    lines.push(`[KRUSKAL] Árbol de Expansión Mínima (MST)`);
+    lines.push(`[KRUSKAL] Nodos: ${nodes.length}`);
+    lines.push(`[KRUSKAL] Aristas en MST: ${kResult.mstEdges.length}`);
+    lines.push(`[KRUSKAL] Peso total: ${kResult.totalWeight}`);
+    lines.push(`[KRUSKAL] Aristas seleccionadas:`);
+    kResult.mstEdges.forEach((edge: GEdge) => {
+      lines.push(`  ${edge.from.label} → ${edge.to.label}  (peso: ${edge.weight})`);
     });
   } else {
     lines.push("[INFO] Sin resultados disponibles.");
@@ -531,14 +584,14 @@ function SelectionBadges({ origin, dest }: { origin: GNode | null; dest: GNode |
   if (!origin && !dest) return null;
   return (
     <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-      {origin && <div style={{ flex: 1, padding: "6px 10px", background: P.greenDim, border: `1px solid ${P.green}44`, borderRadius: 4, fontSize: 11, fontFamily: "'Courier New', monospace" }}><span style={{ color: P.muted }}>Origen: </span><strong style={{ color: P.green }}>{origin.label}</strong></div>}
-      {dest   && <div style={{ flex: 1, padding: "6px 10px", background: P.redDim,   border: `1px solid ${P.red}44`,   borderRadius: 4, fontSize: 11, fontFamily: "'Courier New', monospace" }}><span style={{ color: P.muted }}>Destino: </span><strong style={{ color: P.red }}>{dest.label}</strong></div>}
+      {origin && <div style={{ flex: 1, padding: "6px 10px", background: P.greenDim, border: `1px solid ${P.green}44`, borderRadius: 4, fontSize: 11, fontFamily: "'Courier New', monospace" }}><span style={{ color: P.green }}>▶ Origen:</span> {origin.label}</div>}
+      {dest   && <div style={{ flex: 1, padding: "6px 10px", background: P.redDim,   border: `1px solid ${P.red}44`,   borderRadius: 4, fontSize: 11, fontFamily: "'Courier New', monospace" }}><span style={{ color: P.red }}>◀ Destino:</span> {dest.label}</div>}
     </div>
   );
 }
 function PathRow({ nodes, pathNodes, color }: { nodes: GNode[]; pathNodes: number[]; color: string }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginBottom: 14, padding: "10px 12px", background: `${color}12`, border: `1px solid ${color}33`, borderRadius: 5 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginBottom: 14, padding: "10px 12px", background: `${color}12`, border: `1px solid ${color}33`, borderRadius: 5, fontFamily: "'Courier New', monospace" }}>
       {pathNodes.map((nid, i) => {
         const nd = nodes.find((n: GNode) => n.id === nid);
         return (

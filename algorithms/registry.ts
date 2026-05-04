@@ -88,7 +88,7 @@ export const ALGO_FAMILIES: AlgoFamily[] = [
     icon:    "↖",
     color:   "#666",
     colorDim:"rgba(100,100,100,0.15)",
-    description: "Método de la esquina noroeste para transporte.",
+    description: "Método de la esquina noroesta para transporte.",
     href:        "/transport", 
   },
   {
@@ -119,13 +119,13 @@ export const ALGO_FAMILIES: AlgoFamily[] = [
     coming:  true,
   },
   {
-    id:      "kruskal",
-    label:   "Kruskal",
-    icon:    "✳",
-    color:   "#666",
-    colorDim:"rgba(100,100,100,0.15)",
+    id:          "kruskal",
+    label:       "Kruskal",
+    icon:        "✳",
+    color:       "#ffd700",
+    colorDim:    "rgba(255,215,0,0.15)",
     description: "Árbol de expansión mínima por selección greedy de aristas.",
-    coming:  true,
+    directMode:  "kruskal",
   },
 ];
 

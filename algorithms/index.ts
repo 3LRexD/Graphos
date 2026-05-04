@@ -1,6 +1,7 @@
 export { computeCPM }                    from "./cpm";
 export { computeJohnson, wouldCycle }    from "./johnson";
 export { computeHungarian }              from "./hungarian";
+export { computeKruskal }                from "./kruskal";
 
 // ¡Nuevas exportaciones actualizadas!
 export { 
@@ -15,4 +16,14 @@ export type {
   AlgoVariant 
 } from "./registry";
 
-export type { HungarianOutput, HungarianResult, HungarianError } from "./hungarian";
+export type { 
+  HungarianOutput, 
+  HungarianResult, 
+  HungarianError 
+} from "./hungarian";
+
+export type {
+  KruskalOutput,
+  KruskalResult,
+  KruskalError
+} from "@/types";

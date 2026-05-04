@@ -22,19 +22,18 @@ export const P = {
   green:        "#00ff88",
   greenDim:     "rgba(0,255,136,0.15)",
 
+  yellow:       "#ffd700",
+  yellowDim:    "rgba(255,215,0,0.15)",
+
   text:         "#E0E0E0",
   muted:        "#666",
   mutedBright:  "#999",
   white:        "#ffffff",
 } as const;
-// src/components/canvas/palette.ts
 
 export const COLORS = {
-  // ... tus colores actuales ...
-  
-  // NUEVOS COLORES NEÓN LINDOS
-  BACKGROUND_BLACK: '#000000',    // Negro puro para el fondo
-  PURPLE_NEON: '#A855F7',       // Tu morado principal neón
-  CYAN_TEXT: '#00e5ff',         // El cyan que usaremos para textos
-  GRAY_OUTLINE: '#333333',      // Gris oscuro para outlines normales
+  BACKGROUND_BLACK: '#000000',
+  PURPLE_NEON: '#A855F7',
+  CYAN_TEXT: '#00e5ff',
+  GRAY_OUTLINE: '#333333',
 };

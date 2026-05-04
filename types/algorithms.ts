@@ -8,7 +8,8 @@ export type AlgoMode =
   | "johnson-min"
   | "johnson-max"
   | "hungarian-min"
-  | "hungarian-max";
+  | "hungarian-max"
+  | "kruskal";
 
 export interface PromptCfg {
   open:        boolean;
@@ -20,7 +21,7 @@ export interface PromptCfg {
   onCancel:    (() => void) | null;
 }
 
-// ── CPM ───────────────────────────────────────────────────────────────────────
+// ── CPM ────────────────────────────────────────────────────────────────────
 export interface CPMResult {
   error:     false;
   TE:        Record<number, number>;
@@ -32,7 +33,7 @@ export interface CPMResult {
 export interface CPMError { error: true; }
 export type CPMOutput = CPMResult | CPMError | null;
 
-// ── Johnson ───────────────────────────────────────────────────────────────────
+// ── Johnson ────────────────────────────────────────────────────────────────
 export interface JohnsonResult {
   error:     false;
   dist:      Record<number, number>;
@@ -42,3 +43,16 @@ export interface JohnsonResult {
 }
 export interface JohnsonError { error: "no_path"; }
 export type JohnsonOutput = JohnsonResult | JohnsonError | null;
+
+// ── Kruskal ────────────────────────────────────────────────────────────────
+export interface KruskalResult {
+  error:       false;
+  mstEdges:    GEdge[];
+  totalWeight: number;
+}
+export interface KruskalError {
+  error: "insufficient_nodes" | "disconnected_graph";
+  mstEdges: GEdge[];
+  totalWeight: number;
+}
+export type KruskalOutput = KruskalResult | KruskalError | null;
