@@ -1,18 +1,8 @@
 import type { GNode, GEdge, CPMOutput } from "../types";
 
-/**
- * Critical Path Method (CPM / PERT)
- *
- * Computes earliest time (TE) and latest time (TL) for every node,
- * identifies the critical path edges, and returns the total project duration.
- *
- * Requires the graph to be a valid DAG. Returns { error: true } if a cycle
- * is detected (topological sort cannot complete).
- */
 export function computeCPM(nodes: GNode[], edges: GEdge[]): CPMOutput {
   if (!nodes.length) return null;
 
-  // Build adjacency list and in-degree map
   const adj = new Map<number, { to: number; w: number; edge: GEdge }[]>();
   const inDeg = new Map<number, number>();
   nodes.forEach((n) => {
@@ -24,7 +14,6 @@ export function computeCPM(nodes: GNode[], edges: GEdge[]): CPMOutput {
     inDeg.set(e.to.id, (inDeg.get(e.to.id) || 0) + 1);
   });
 
-  // Kahn's algorithm — topological sort
   const q: number[] = [];
   inDeg.forEach((d, id) => { if (d === 0) q.push(id); });
   const topo: number[] = [];
@@ -50,7 +39,6 @@ export function computeCPM(nodes: GNode[], edges: GEdge[]): CPMOutput {
     })
   );
 
-  // Backward pass — latest times
   const maxTE = Math.max(...Object.values(TE), 0);
   nodes.forEach((n) => { TL[n.id] = maxTE; });
   [...topo].reverse().forEach((u) =>
@@ -58,8 +46,6 @@ export function computeCPM(nodes: GNode[], edges: GEdge[]): CPMOutput {
       if (TL[e.to] - e.w < TL[u]) TL[u] = TL[e.to] - e.w;
     })
   );
-
-  // Identify critical edges (zero total float)
   const critEdges = new Set<GEdge>();
   edges.forEach((e) => {
     const w = parseFloat(e.weight) || 0;

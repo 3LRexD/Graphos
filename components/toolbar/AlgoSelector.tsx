@@ -15,17 +15,25 @@ export default function AlgoSelector({ currentMode, onSelect, onClose }: Props) 
   const [hoveredFamily, setHoveredFamily] = useState<string | null>(null);
 
   const handleFamilyClick = (family: AlgoFamily) => {
-    if (family.coming) return;
-    if (family.directMode !== undefined) {
-      onSelect(family.directMode);
-      onClose();
-      return;
-    }
-    if (family.variants && family.variants.length > 0) {
-      setActiveFamily(family);
-      setStep("variant");
-    }
-  };
+  if (family.coming) return;
+
+  // ← agregar este bloque
+  if (family.href) {
+    window.location.href = family.href;   // o usa router.push si tienes useRouter
+    onClose();
+    return;
+  }
+
+  if (family.directMode !== undefined) {
+    onSelect(family.directMode);
+    onClose();
+    return;
+  }
+  if (family.variants && family.variants.length > 0) {
+    setActiveFamily(family);
+    setStep("variant");
+  }
+};
 
   const handleVariantClick = (variant: AlgoVariant) => {
     onSelect(variant.id);

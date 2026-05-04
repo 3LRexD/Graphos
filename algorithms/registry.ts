@@ -1,16 +1,3 @@
-/**
- * Algorithm Registry — hierarchical two-step selection model.
- *
- * Level 1: "families" shown in the main selector modal.
- * Level 2: "variants" shown in the sub-picker when a family is clicked.
- *
- * TO ADD A NEW ALGORITHM:
- *   1. Add a family entry (or a variant to an existing family)
- *   2. Create algorithms/myAlgo.ts
- *   3. Create components/panels/MyAlgoPanel.tsx
- *   4. Handle the new AlgoMode in GraphEditor solve()
- */
-
 export interface AlgoVariant {
   id:          string;       // maps to AlgoMode value
   label:       string;
@@ -29,7 +16,8 @@ export interface AlgoFamily {
   description: string;       // shown under the family card
   coming?:     boolean;      // true = "próximamente" — not selectable
   variants?:   AlgoVariant[]; // if present → shows sub-picker
-  directMode?: string;       // if present (no variants) → selects this AlgoMode directly
+  directMode?: string;    
+  href?:       string;    // if present (no variants) → selects this AlgoMode directly
 }
 
 export const ALGO_FAMILIES: AlgoFamily[] = [
@@ -101,7 +89,7 @@ export const ALGO_FAMILIES: AlgoFamily[] = [
     color:   "#666",
     colorDim:"rgba(100,100,100,0.15)",
     description: "Método de la esquina noroeste para transporte.",
-    coming:  true,
+    href:        "/transport", 
   },
   {
     id:      "sorts",

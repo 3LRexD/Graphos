@@ -2,7 +2,6 @@ import type { GEdge } from "./graph";
 
 export type ToolMode = "add" | "connect" | "move" | "edit" | "delete";
 
-// "none" = neutral/pizarra mode — unrestricted connections (self-loops, bidirectional)
 export type AlgoMode =
   | "none"
   | "cpm"

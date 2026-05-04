@@ -1,6 +1,5 @@
 import type { GNode, GEdge } from "@/types";
 
-// ─── Result types ─────────────────────────────────────────────────────────────
 
 export interface HungarianResult {
   error: false;
@@ -24,15 +23,6 @@ export interface HungarianStep {
   matrix: number[][];
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Detects two disjoint sets from the graph edges (bipartite partition).
- * Agents = nodes that only appear as edge sources (or majority source).
- * Tasks  = nodes that only appear as edge targets (or majority target).
- *
- * For the assignment problem the user should draw edges FROM agents TO tasks.
- */
 function partitionBipartite(
   nodes: GNode[],
   edges: GEdge[]
@@ -79,16 +69,9 @@ function padSquare(matrix: number[][], fill: number): number[][] {
   );
 }
 
-/** Deep clone a 2-D number array. */
 const clone2D = (m: number[][]): number[][] => m.map((r) => [...r]);
 
-// ─── Core Hungarian (Munkres) ─────────────────────────────────────────────────
 
-/**
- * Solves the square assignment problem via the Hungarian / Munkres algorithm.
- * Always minimises — for maximisation pass the negated matrix.
- * Returns the assignment as an array of [row, col] pairs.
- */
 function hungarianSolve(costMatrix: number[][]): [number, number][] {
   const n   = costMatrix.length;
   const INF = Infinity;
@@ -284,10 +267,8 @@ export function computeHungarian(
   }
   steps.push({ description: "Después de reducción por columnas", matrix: afterColRed.slice(0, nA).map((r) => r.slice(0, nT)) });
 
-  // Solve
   const pairs = hungarianSolve(squared);
 
-  // Build assignments (only valid agent→task pairs, ignore padding)
   const assignments: HungarianResult["assignments"] = [];
   let totalCost = 0;
 
