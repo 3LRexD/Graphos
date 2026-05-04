@@ -98,7 +98,7 @@ export const ALGO_FAMILIES: AlgoFamily[] = [
     color:   "#666",
     colorDim:"rgba(100,100,100,0.15)",
     description: "Algoritmos de ordenamiento visualizados sobre grafos.",
-    coming:  true,
+    href:        "/sort",
   },
   {
     id:      "bintree",
