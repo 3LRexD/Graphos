@@ -1,7 +1,6 @@
 /**
  * useSortState.ts
  * Toda la lógica de estado del visualizador de ordenamiento.
- * El componente de UI solo llama funciones de este hook.
  */
 "use client";
 
@@ -22,7 +21,7 @@ const EXAMPLE_SETS = [
 export function useSortState() {
   const [values, setValues]         = useState<number[]>([]);
   const [inputText, setInputText]   = useState<string>("");
-  const [algorithm, setAlgorithm]   = useState<SortAlgorithm>("bubble");
+  const [algorithm, setAlgorithm]   = useState<SortAlgorithm>("selection"); // Default cambiado a selection
   const [result, setResult]         = useState<SortOutput | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying]   = useState(false);
@@ -77,6 +76,69 @@ export function useSortState() {
     setCurrentStep(0);
     setIsPlaying(false);
     setInputText("");
+  }, []);
+
+  // ── Generar Aleatorios ────────────────────────────────────────────────────
+  const generateRandom = useCallback((min: number, max: number, count: number) => {
+    if (count > 30) {
+      showToast("⚠ Máximo 30 elementos.");
+      return;
+    }
+    if (min > max) {
+      showToast("⚠ El mínimo no puede ser mayor al máximo.");
+      return;
+    }
+    if (count <= 0) return;
+
+    const randomArr = Array.from(
+      { length: count }, 
+      () => Math.floor(Math.random() * (max - min + 1)) + min
+    );
+    setValues(randomArr);
+    setResult(null);
+    setCurrentStep(0);
+    setIsPlaying(false);
+  }, []);
+
+  // ── Importar Archivo ──────────────────────────────────────────────────────
+  const importFile = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        let newValues: number[] = [];
+
+        if (file.name.toLowerCase().endsWith('.json')) {
+          const parsed = JSON.parse(text);
+          if (Array.isArray(parsed)) {
+            newValues = parsed.map(Number).filter(n => !isNaN(n));
+          } else {
+             showToast("⚠ El JSON debe contener un arreglo de números.");
+             return;
+          }
+        } else {
+          // CSV o TXT: separar por comas, espacios o saltos de línea
+          newValues = text.split(/[\s,]+/).filter(Boolean).map(Number).filter(n => !isNaN(n));
+        }
+
+        if (newValues.length === 0) {
+          showToast("⚠ No se encontraron números válidos en el archivo.");
+          return;
+        }
+        if (newValues.length > 30) {
+          showToast("⚠ Se tomaron los primeros 30 elementos (máximo permitido).");
+          newValues = newValues.slice(0, 30);
+        }
+        
+        setValues(newValues);
+        setResult(null);
+        setCurrentStep(0);
+        setIsPlaying(false);
+      } catch (err) {
+        showToast("⚠ Error al leer o procesar el archivo.");
+      }
+    };
+    reader.readAsText(file);
   }, []);
 
   // ── Resolver ──────────────────────────────────────────────────────────────
@@ -142,6 +204,8 @@ export function useSortState() {
     removeValue,
     clear,
     loadExample,
+    generateRandom,
+    importFile,
     solve,
     nextStep,
     prevStep,

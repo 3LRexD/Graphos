@@ -1,6 +1,6 @@
 // algorithms/sort.ts
 
-export type SortAlgorithm = "bubble" | "selection" | "insertion" | "merge" | "quick";
+export type SortAlgorithm = "selection" | "insertion" | "merge" | "shell";
 
 export interface SortInput {
   values: number[];
@@ -13,7 +13,7 @@ export interface SortStep {
   comparing: number[];   // indices being compared
   swapping: number[];    // indices being swapped
   sorted: number[];      // indices confirmed sorted
-  pivot?: number;        // pivot index (quicksort)
+  pivot?: number;        // pivot index (quicksort/not used here but kept for type compat)
   description: string;
 }
 
@@ -36,11 +36,10 @@ export type SortError =
 export type SortOutput = SortResult | SortError;
 
 const ALGORITHM_NAMES: Record<SortAlgorithm, string> = {
-  bubble:    "Bubble Sort",
   selection: "Selection Sort",
   insertion: "Insertion Sort",
   merge:     "Merge Sort",
-  quick:     "Quick Sort",
+  shell:     "Shell Sort",
 };
 
 export function computeSort(input: SortInput): SortOutput {
@@ -74,30 +73,7 @@ export function computeSort(input: SortInput): SortOutput {
     });
   };
 
-  if (algorithm === "bubble") {
-    const sortedSet: number[] = [];
-    for (let i = 0; i < arr.length - 1; i++) {
-      let swapped = false;
-      for (let j = 0; j < arr.length - 1 - i; j++) {
-        comparisons++;
-        snap(arr, [j, j + 1], [], sortedSet, `Comparar posición ${j} (${arr[j]}) con posición ${j + 1} (${arr[j + 1]})`);
-        if (arr[j] > arr[j + 1]) {
-          swaps++;
-          snap(arr, [], [j, j + 1], sortedSet, `Intercambiar ${arr[j]} y ${arr[j + 1]}`);
-          [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
-          snap(arr, [], [], sortedSet, `Resultado del intercambio`);
-          swapped = true;
-        }
-      }
-      sortedSet.push(arr.length - 1 - i);
-      snap(arr, [], [], [...sortedSet], `Posición ${arr.length - 1 - i} confirmada como ${arr[arr.length - 1 - i]}`);
-      if (!swapped) break;
-    }
-    sortedSet.push(...Array.from({ length: arr.length }, (_, i) => i).filter(i => !sortedSet.includes(i)));
-    snap(arr, [], [], Array.from({ length: arr.length }, (_, i) => i), "¡Arreglo ordenado!");
-  }
-
-  else if (algorithm === "selection") {
+  if (algorithm === "selection") {
     const sortedSet: number[] = [];
     for (let i = 0; i < arr.length - 1; i++) {
       let minIdx = i;
@@ -135,6 +111,7 @@ export function computeSort(input: SortInput): SortOutput {
         snap(arr, [], [j, j + 1], [...sortedSet], `Desplazar ${arr[j + 1]} a posición ${j + 1}`);
         j--;
       }
+      if (j >= 0) comparisons++; // For the last comparison that fails the while loop condition
       arr[j + 1] = key;
       sortedSet.push(i);
       snap(arr, [], [], [...sortedSet], `Insertar ${key} en posición ${j + 1}`);
@@ -176,39 +153,28 @@ export function computeSort(input: SortInput): SortOutput {
     snap(arr, [], [], Array.from({ length: arr.length }, (_, i) => i), "¡Arreglo ordenado!");
   }
 
-  else if (algorithm === "quick") {
+  else if (algorithm === "shell") {
     const sortedSet: number[] = [];
-    const quickSort = (a: number[], low: number, high: number) => {
-      if (low >= high) {
-        if (low === high) sortedSet.push(low);
-        return;
-      }
-      const pivotVal = a[high];
-      snap(a, [], [], [...sortedSet], `Pivote elegido: ${pivotVal} (índice ${high})`, high);
-
-      let i = low - 1;
-      for (let j = low; j < high; j++) {
-        comparisons++;
-        snap(a, [j, high], [], [...sortedSet], `Comparar ${a[j]} con pivote ${pivotVal}`, high);
-        if (a[j] <= pivotVal) {
-          i++;
-          if (i !== j) {
+    for (let gap = Math.floor(arr.length / 2); gap > 0; gap = Math.floor(gap / 2)) {
+      for (let i = gap; i < arr.length; i++) {
+        let temp = arr[i];
+        let j;
+        snap(arr, [i], [], [...sortedSet], `Brecha ${gap}: tomar elemento ${temp}`);
+        for (j = i; j >= gap; j -= gap) {
+          comparisons++;
+          snap(arr, [j - gap, i], [], [...sortedSet], `Comparar ${arr[j - gap]} con ${temp} (Brecha ${gap})`);
+          if (arr[j - gap] > temp) {
+            arr[j] = arr[j - gap];
             swaps++;
-            snap(a, [], [i, j], [...sortedSet], `Intercambiar ${a[i]} y ${a[j]}`, high);
-            [a[i], a[j]] = [a[j], a[i]];
+            snap(arr, [], [j, j - gap], [...sortedSet], `Desplazar ${arr[j - gap]} a la derecha`);
+          } else {
+            break;
           }
         }
+        arr[j] = temp;
+        snap(arr, [], [], [...sortedSet], `Insertar ${temp} en posición ${j}`);
       }
-      const pivotIdx = i + 1;
-      [a[pivotIdx], a[high]] = [a[high], a[pivotIdx]];
-      sortedSet.push(pivotIdx);
-      swaps++;
-      snap(a, [], [], [...sortedSet], `Pivote ${pivotVal} ubicado en posición final ${pivotIdx}`, pivotIdx);
-
-      quickSort(a, low, pivotIdx - 1);
-      quickSort(a, pivotIdx + 1, high);
-    };
-    quickSort(arr, 0, arr.length - 1);
+    }
     snap(arr, [], [], Array.from({ length: arr.length }, (_, i) => i), "¡Arreglo ordenado!");
   }
 
