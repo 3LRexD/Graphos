@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, CSSProperties } from "react";
+import { useState, useEffect, useRef, CSSProperties, JSX } from "react";
 import { useBSTState } from "../../hooks/useTreeState";
 import { useRouter } from "next/navigation";
 import type {
@@ -290,7 +290,7 @@ const REBUILD_OPTIONS: { value: RebuildMode; label: string }[] = [
 ];
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export default function BSTPage() {
+export default function Page() {
   const state  = useBSTState();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -402,8 +402,12 @@ export default function BSTPage() {
                 style={{
                   flex: 1, padding: "12px 8px",
                   background: active ? P.purpleDim : "transparent",
+                  // 👇 SOLUCIÓN: Desglosar el border: "none"
+                  borderTop: "none",
+                  borderLeft: "none",
+                  borderRight: "none",
                   borderBottom: active ? `2px solid ${P.purple}` : "2px solid transparent",
-                  border: "none",
+                  // -----------------------------------------
                   color: active ? P.purple : P.muted,
                   cursor: "pointer", fontFamily: "'Courier New', monospace",
                   fontSize: 11, fontWeight: "bold", letterSpacing: 0.5,
