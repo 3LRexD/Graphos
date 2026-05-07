@@ -5,6 +5,7 @@ export interface AlgoVariant {
   icon:        string;
   color:       string;
   colorDim:    string;
+  href?:       string;
 }
 
 export interface AlgoFamily {
@@ -16,7 +17,7 @@ export interface AlgoFamily {
   description: string;       // shown under the family card
   coming?:     boolean;      // true = "próximamente" — not selectable
   variants?:   AlgoVariant[]; // if present → shows sub-picker
-  directMode?: string;    
+  directMode?: string;
   href?:       string;    // if present (no variants) → selects this AlgoMode directly
 }
 
@@ -127,13 +128,13 @@ export const ALGO_FAMILIES: AlgoFamily[] = [
     href:        "/sort",
   },
   {
-    id:      "bintree",
+    id:      "trees",
     label:   "Árboles Binarios",
     icon:    "⌥",
-    color:   "#666",
-    colorDim:"rgba(100,100,100,0.15)",
+    color:   "#A855F7",
+    colorDim:"rgba(168,85,247,0.15))",
     description: "Construcción y recorrido de árboles binarios.",
-    coming:  true,
+    href:     "/trees",
   },
   {
     id:          "kruskal",
