@@ -531,7 +531,7 @@ function JSONImportPanel({
       background: "#0a0a0a", border: `1px solid ${P.border}`,
       borderRadius: 8,
     }}>
-      <SectionHeader icon="📥" title="Importar desde JSON" />
+      <SectionHeader icon="" title="Importar desde JSON" />
       <p style={{ fontSize: 10, color: P.muted, marginBottom: 8 }}>
         Acepta: array de números, <code style={{ color: P.cyan }}>insertionOrder</code>, o <code style={{ color: P.cyan }}>sequences.inorder</code>.
       </p>
@@ -543,7 +543,7 @@ function JSONImportPanel({
           style={{ display: "none" }} />
         <Btn color={P.cyan} colorDim={P.cyanDim}
           onClick={() => fileRef.current?.click()}>
-          📂 Seleccionar archivo .json
+          Seleccionar archivo .json
         </Btn>
         <span style={{ color: P.muted, fontSize: 10 }}>o pega el JSON abajo</span>
       </div>
@@ -642,7 +642,7 @@ function InstructionsModal({ onClose }: { onClose: () => void }) {
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1.4rem" }}>
           <div>
             <div style={{ fontSize: 16, color: P.cyan, fontWeight: "bold", letterSpacing: 1.5, marginBottom: 4 }}>
-              📖 Instrucciones
+              Instrucciones
             </div>
             <div style={{ fontSize: 10, color: P.muted }}>
               Árbol Binario de Búsqueda (BST) — Guía de uso
@@ -660,7 +660,7 @@ function InstructionsModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* ── What is a BST ── */}
-        <Section icon="🌳" title="¿QUÉ ES UN BST?">
+        <Section icon="" title="¿QUÉ ES UN BST?">
           Un <strong style={{ color: P.purple }}>Árbol Binario de Búsqueda</strong> es una estructura de datos donde cada nodo
           tiene como máximo dos hijos. Para cualquier nodo con valor <Tag color={P.cyan}>N</Tag>:
           <ul style={{ margin: "0.6rem 0 0 1rem", padding: 0, listStyle: "disc" }}>
@@ -673,7 +673,7 @@ function InstructionsModal({ onClose }: { onClose: () => void }) {
         <Rule />
 
         {/* ── Build tab ── */}
-        <Section icon="🔨" title="PESTAÑA: BUILD TREE">
+        <Section icon="" title="PESTAÑA: BUILD TREE">
           Construye el árbol ingresando números uno a uno o generando un conjunto aleatorio.
           <ul style={{ margin: "0.6rem 0 0 1rem", padding: 0, listStyle: "disc" }}>
             <li><strong style={{ color: P.purple }}>Entrada manual</strong> — escribe un número y pulsa <Tag color={P.purple}>Enter</Tag> o <Tag color={P.purple}>+ Agregar</Tag>. El árbol se actualiza en tiempo real con cada número.</li>
@@ -686,7 +686,7 @@ function InstructionsModal({ onClose }: { onClose: () => void }) {
         <Rule />
 
         {/* ── Traversals tab ── */}
-        <Section icon="🔁" title="PESTAÑA: TRAVERSALS">
+        <Section icon="" title="PESTAÑA: TRAVERSALS">
           Visualiza paso a paso cómo se recorre el árbol construido.
           <ul style={{ margin: "0.6rem 0 0 1rem", padding: 0, listStyle: "disc" }}>
             <li><Tag color={P.cyan}>In-order</Tag> <span style={{ color: P.muted }}>(Izq → Raíz → Der)</span> — produce los valores en orden ascendente.</li>
@@ -709,21 +709,21 @@ function InstructionsModal({ onClose }: { onClose: () => void }) {
         <Rule />
 
         {/* ── Rebuild tab ── */}
-        <Section icon="♻" title="PESTAÑA: REBUILD TREE">
+        <Section icon="" title="PESTAÑA: REBUILD TREE">
           Reconstruye un árbol únicamente a partir de sus secuencias de recorrido,
           sin necesidad de conocer el orden de inserción original.
           <ul style={{ margin: "0.6rem 0 0 1rem", padding: 0, listStyle: "disc" }}>
             <li>Necesitas <strong style={{ color: P.yellow }}>In-order</strong> más <strong style={{ color: P.yellow }}>Pre-order</strong>, o bien <strong style={{ color: P.yellow }}>In-order</strong> más <strong style={{ color: P.yellow }}>Post-order</strong>.</li>
             <li>Ingresa cada secuencia separada por espacios o comas.</li>
-            <li>Pulsa <Tag color={P.purple}>📋 Usar árbol actual</Tag> para rellenar automáticamente desde el árbol activo.</li>
-            <li>Pulsa <Tag color={P.yellow}>♻ Reconstruir</Tag> para generar y visualizar el árbol.</li>
+            <li>Pulsa <Tag color={P.purple}>Usar árbol actual</Tag> para rellenar automáticamente desde el árbol activo.</li>
+            <li>Pulsa <Tag color={P.yellow}>Reconstruir</Tag> para generar y visualizar el árbol.</li>
           </ul>
         </Section>
 
         <Rule />
 
         {/* ── Import / Export ── */}
-        <Section icon="💾" title="IMPORTAR / EXPORTAR">
+        <Section icon="" title="IMPORTAR / EXPORTAR">
           <ul style={{ margin: 0, padding: 0, listStyle: "disc", marginLeft: "1rem" }}>
             <li><Tag color={P.yellow}>⬇ Exportar JSON</Tag> — guarda el árbol actual (estructura, secuencias y orden de inserción) en un archivo <code style={{ color: P.cyan }}>.json</code>. Puedes elegir el nombre del archivo.</li>
             <li><Tag color={P.orange}>⬆ Importar JSON</Tag> — carga valores desde un <code style={{ color: P.cyan }}>.json</code> exportado previamente. Acepta un array directo, el campo <code style={{ color: P.cyan }}>insertionOrder</code>, o <code style={{ color: P.cyan }}>sequences.inorder</code>.</li>
@@ -860,7 +860,7 @@ export default function Page() {
 
       {/* ── Header ── */}
       <div style={{ textAlign: "center", padding: "2.2rem 1rem 1.4rem" }}>
-        <div style={{ fontSize: 26, marginBottom: 6 }}>🌳</div>
+        <div style={{ fontSize: 26, marginBottom: 6 }}></div>
         <h1 style={{
           fontSize: "1.5rem", fontWeight: 400, color: P.text,
           letterSpacing: 2, margin: "0 0 6px",
@@ -909,7 +909,7 @@ export default function Page() {
             color={P.cyan} colorDim={P.cyanDim}
             onClick={() => setShowInstructions(true)}
           >
-            📖 Instrucciones
+            Instrucciones
           </Btn>
         </div>
 
@@ -931,7 +931,7 @@ export default function Page() {
           borderRadius: 10, overflow: "hidden", marginBottom: "1.4rem",
         }}>
           {(["build", "traversal", "rebuild"] as const).map((tab, i) => {
-            const labels = ["🔨 Build Tree", "🔁 Traversals", "♻ Rebuild Tree"];
+            const labels = ["Build Tree", "Traversals", "Rebuild Tree"];
             const active = state.activeTab === tab;
             return (
               <button
@@ -963,7 +963,7 @@ export default function Page() {
               background: P.surface, border: `1px solid ${P.border}`,
               borderRadius: 8, padding: "1.2rem", marginBottom: "1.2rem",
             }}>
-              <SectionHeader icon="✏" title="Ingresar Números" />
+              <SectionHeader icon="" title="Ingresar Números" />
               <p style={{ fontSize: 10, color: P.muted, marginBottom: "0.8rem" }}>
                 El primer número ingresado será la raíz. Los menores van a la izquierda, los mayores a la derecha.
               </p>
@@ -1053,7 +1053,7 @@ export default function Page() {
                   padding: "14px", marginBottom: "1.5rem", fontSize: 13,
                 }}
               >
-                🔨 BUILD TREE
+                BUILD TREE
               </button>
             )}
           </>
@@ -1065,7 +1065,7 @@ export default function Page() {
             background: P.surface, border: `1px solid ${P.border}`,
             borderRadius: 8, padding: "1.2rem", marginBottom: "1.2rem",
           }}>
-            <SectionHeader icon="🔁" title="Modo de Recorrido" />
+            <SectionHeader icon="" title="Modo de Recorrido" />
 
             {/* Mode selector */}
             <div style={{ display: "flex", gap: 6, marginBottom: "1rem", flexWrap: "wrap" }}>
@@ -1213,7 +1213,7 @@ export default function Page() {
                 </div>
 
                 {/* Step list */}
-                <SectionHeader icon="≡" title="Lista de Pasos" />
+                <SectionHeader icon="" title="Lista de Pasos" />
                 <div style={{
                   background: "#0a0a0a", border: `1px solid ${P.border}`,
                   borderRadius: 8, padding: "1rem",
@@ -1269,7 +1269,7 @@ export default function Page() {
             background: P.surface, border: `1px solid ${P.border}`,
             borderRadius: 8, padding: "1.2rem", marginBottom: "1.2rem",
           }}>
-            <SectionHeader icon="♻" title="Reconstruir Árbol desde Secuencias" />
+            <SectionHeader icon="" title="Reconstruir Árbol desde Secuencias" />
             <p style={{ fontSize: 10, color: P.muted, marginBottom: "1rem" }}>
               Ingresa dos secuencias de recorrido para reconstruir el árbol. Todos los nodos deben estar presentes en ambas secuencias.
             </p>
@@ -1345,10 +1345,10 @@ export default function Page() {
               <Btn color={P.purple} colorDim={P.purpleDim}
                 onClick={state.prefillRebuildFromCurrent}
                 disabled={!state.activeRoot}>
-                📋 Usar árbol actual
+                Usar árbol actual
               </Btn>
               <Btn color={P.yellow} colorDim={P.yellowDim} filled onClick={state.doRebuild}>
-                ♻ Reconstruir
+               Reconstruir
               </Btn>
               <Btn color={P.red} colorDim={P.redDim} onClick={state.clearRebuild}>
                 ✕ Limpiar
@@ -1401,7 +1401,7 @@ export default function Page() {
           borderRadius: 8, padding: "1.2rem", marginBottom: "1.5rem",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: "0.8rem" }}>
-            <SectionHeader icon="🌳" title="Visualización del Árbol" />
+            <SectionHeader icon="" title="Visualización del Árbol" />
             {/* Export button inline near the tree */}
             {tree && (
               <Btn color={P.yellow} colorDim={P.yellowDim}
@@ -1459,7 +1459,7 @@ export default function Page() {
             background: P.surface, border: `1px solid ${P.border}`,
             borderRadius: 8, padding: "1.2rem", marginBottom: "1.5rem",
           }}>
-            <SectionHeader icon="📋" title="Secuencias de Recorrido" />
+            <SectionHeader icon="" title="Secuencias de Recorrido" />
             {[
               { label: "In-order",   values: tree.inorder,   color: P.cyan   },
               { label: "Pre-order",  values: tree.preorder,  color: P.purple },

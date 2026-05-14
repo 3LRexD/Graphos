@@ -364,7 +364,7 @@ export default function SortPage() {
 
             {/* Botón para la Guía */}
             <Btn color={P.purple} colorDim={P.purpleDim} onClick={() => setShowGuide(v => !v)}>
-              📖 Guía
+              Guía
             </Btn>
 
             <Divider />
@@ -428,7 +428,7 @@ export default function SortPage() {
             borderRadius: 8, padding: "1.5rem", marginBottom: "1.5rem",
             boxShadow: `0 0 20px ${P.purpleDim}`, animation: "fadeIn 0.3s ease"
           }}>
-            <SectionHeader icon="📖" title="Guía de Uso del Visualizador" />
+            <SectionHeader icon="" title="Guía de Uso del Visualizador" />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.5rem", fontSize: 12, color: P.text }}>
               
               {/* Sección 1: Datos */}
