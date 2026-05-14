@@ -581,6 +581,168 @@ function JSONImportPanel({
   );
 }
 
+// ─── Instructions modal ──────────────────────────────────────────────────────
+function InstructionsModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const Section = ({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) => (
+    <div style={{ marginBottom: "1.4rem" }}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8,
+        marginBottom: "0.6rem",
+        color: P.cyan, fontSize: 12, fontWeight: "bold", letterSpacing: 0.8,
+      }}>
+        <span>{icon}</span><span>{title}</span>
+      </div>
+      <div style={{ fontSize: 11, color: P.text, lineHeight: 1.75, paddingLeft: 4 }}>
+        {children}
+      </div>
+    </div>
+  );
+
+  const Tag = ({ color, children }: { color: string; children: React.ReactNode }) => (
+    <span style={{
+      display: "inline-block",
+      padding: "1px 8px", marginLeft: 4,
+      background: color + "22", border: `1px solid ${color}55`,
+      borderRadius: 4, color, fontSize: 10, fontFamily: "'Courier New', monospace",
+      verticalAlign: "middle",
+    }}>{children}</span>
+  );
+
+  const Rule = () => (
+    <div style={{ borderTop: `1px solid ${P.border}`, margin: "1.2rem 0" }} />
+  );
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0,
+        background: "rgba(0,0,0,0.72)", backdropFilter: "blur(4px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        zIndex: 1000, padding: "1rem",
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: P.surface, border: `1px solid ${P.cyan}44`,
+          borderRadius: 12, padding: "1.8rem 2rem",
+          width: "min(640px, 95vw)", maxHeight: "85vh",
+          overflowY: "auto", boxShadow: `0 0 50px ${P.cyan}18`,
+          fontFamily: "'Courier New', monospace",
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1.4rem" }}>
+          <div>
+            <div style={{ fontSize: 16, color: P.cyan, fontWeight: "bold", letterSpacing: 1.5, marginBottom: 4 }}>
+              📖 Instrucciones
+            </div>
+            <div style={{ fontSize: 10, color: P.muted }}>
+              Árbol Binario de Búsqueda (BST) — Guía de uso
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none", border: `1px solid ${P.border}`,
+              borderRadius: 6, color: P.muted,
+              cursor: "pointer", fontSize: 16, lineHeight: 1,
+              padding: "4px 10px", fontFamily: "'Courier New', monospace",
+            }}
+          >✕</button>
+        </div>
+
+        {/* ── What is a BST ── */}
+        <Section icon="🌳" title="¿QUÉ ES UN BST?">
+          Un <strong style={{ color: P.purple }}>Árbol Binario de Búsqueda</strong> es una estructura de datos donde cada nodo
+          tiene como máximo dos hijos. Para cualquier nodo con valor <Tag color={P.cyan}>N</Tag>:
+          <ul style={{ margin: "0.6rem 0 0 1rem", padding: 0, listStyle: "disc" }}>
+            <li>Todos los valores en el <strong style={{ color: P.green }}>subárbol izquierdo</strong> son <strong>menores</strong> que <Tag color={P.cyan}>N</Tag></li>
+            <li>Todos los valores en el <strong style={{ color: P.yellow }}>subárbol derecho</strong> son <strong>mayores</strong> que <Tag color={P.cyan}>N</Tag></li>
+            <li>Los valores <strong style={{ color: P.red }}>duplicados</strong> son ignorados</li>
+          </ul>
+        </Section>
+
+        <Rule />
+
+        {/* ── Build tab ── */}
+        <Section icon="🔨" title="PESTAÑA: BUILD TREE">
+          Construye el árbol ingresando números uno a uno o generando un conjunto aleatorio.
+          <ul style={{ margin: "0.6rem 0 0 1rem", padding: 0, listStyle: "disc" }}>
+            <li><strong style={{ color: P.purple }}>Entrada manual</strong> — escribe un número y pulsa <Tag color={P.purple}>Enter</Tag> o <Tag color={P.purple}>+ Agregar</Tag>. El árbol se actualiza en tiempo real con cada número.</li>
+            <li><strong style={{ color: P.purple }}>Generador aleatorio</strong> — define cantidad, mínimo y máximo, luego pulsa <Tag color={P.purple}>Generar</Tag>. Después presiona <Tag color={P.cyan}>BUILD TREE</Tag> para construir.</li>
+            <li>El <strong style={{ color: P.yellow }}>primer número ingresado</strong> siempre será la raíz del árbol.</li>
+            <li>Máximo <Tag color={P.red}>30 nodos</Tag>. Puedes eliminar valores individuales con <Tag color={P.red}>×</Tag>.</li>
+          </ul>
+        </Section>
+
+        <Rule />
+
+        {/* ── Traversals tab ── */}
+        <Section icon="🔁" title="PESTAÑA: TRAVERSALS">
+          Visualiza paso a paso cómo se recorre el árbol construido.
+          <ul style={{ margin: "0.6rem 0 0 1rem", padding: 0, listStyle: "disc" }}>
+            <li><Tag color={P.cyan}>In-order</Tag> <span style={{ color: P.muted }}>(Izq → Raíz → Der)</span> — produce los valores en orden ascendente.</li>
+            <li><Tag color={P.purple}>Pre-order</Tag> <span style={{ color: P.muted }}>(Raíz → Izq → Der)</span> — útil para copiar o serializar el árbol.</li>
+            <li><Tag color={P.yellow}>Post-order</Tag> <span style={{ color: P.muted }}>(Izq → Der → Raíz)</span> — útil para eliminar o liberar el árbol.</li>
+          </ul>
+          <div style={{ marginTop: "0.6rem" }}>
+            Selecciona el tipo, pulsa <Tag color={P.cyan}>▶ Ejecutar</Tag> y usa los controles
+            <Tag color={P.muted}>⟨ Anterior</Tag> <Tag color={P.muted}>Siguiente ⟩</Tag> o
+            <Tag color={P.green}>▶ Play</Tag> para una animación automática.
+          </div>
+          <div style={{ marginTop: "0.5rem", color: P.muted }}>
+            Colores en el árbol:
+            <Tag color={P.cyan}>Visitando ahora</Tag>
+            <Tag color={P.green}>Ya visitado</Tag>
+            <Tag color={P.purple}>En ruta</Tag>
+          </div>
+        </Section>
+
+        <Rule />
+
+        {/* ── Rebuild tab ── */}
+        <Section icon="♻" title="PESTAÑA: REBUILD TREE">
+          Reconstruye un árbol únicamente a partir de sus secuencias de recorrido,
+          sin necesidad de conocer el orden de inserción original.
+          <ul style={{ margin: "0.6rem 0 0 1rem", padding: 0, listStyle: "disc" }}>
+            <li>Necesitas <strong style={{ color: P.yellow }}>In-order</strong> más <strong style={{ color: P.yellow }}>Pre-order</strong>, o bien <strong style={{ color: P.yellow }}>In-order</strong> más <strong style={{ color: P.yellow }}>Post-order</strong>.</li>
+            <li>Ingresa cada secuencia separada por espacios o comas.</li>
+            <li>Pulsa <Tag color={P.purple}>📋 Usar árbol actual</Tag> para rellenar automáticamente desde el árbol activo.</li>
+            <li>Pulsa <Tag color={P.yellow}>♻ Reconstruir</Tag> para generar y visualizar el árbol.</li>
+          </ul>
+        </Section>
+
+        <Rule />
+
+        {/* ── Import / Export ── */}
+        <Section icon="💾" title="IMPORTAR / EXPORTAR">
+          <ul style={{ margin: 0, padding: 0, listStyle: "disc", marginLeft: "1rem" }}>
+            <li><Tag color={P.yellow}>⬇ Exportar JSON</Tag> — guarda el árbol actual (estructura, secuencias y orden de inserción) en un archivo <code style={{ color: P.cyan }}>.json</code>. Puedes elegir el nombre del archivo.</li>
+            <li><Tag color={P.orange}>⬆ Importar JSON</Tag> — carga valores desde un <code style={{ color: P.cyan }}>.json</code> exportado previamente. Acepta un array directo, el campo <code style={{ color: P.cyan }}>insertionOrder</code>, o <code style={{ color: P.cyan }}>sequences.inorder</code>.</li>
+          </ul>
+        </Section>
+
+        {/* Footer */}
+        <div style={{
+          marginTop: "1rem", paddingTop: "1rem",
+          borderTop: `1px solid ${P.border}`,
+          fontSize: 10, color: P.muted, textAlign: "center",
+        }}>
+          Pulsa <Tag color={P.muted}>Esc</Tag> o haz clic fuera para cerrar
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Page() {
   const state  = useBSTState();
@@ -594,6 +756,9 @@ export default function Page() {
 
   // Export modal
   const [showExport, setShowExport] = useState(false);
+
+  // Instructions modal
+  const [showInstructions, setShowInstructions] = useState(false);
 
   // animKey: changes whenever the "displayed" tree root changes → re-triggers CSS animations
   const [animKey, setAnimKey] = useState(0);
@@ -666,6 +831,11 @@ export default function Page() {
       {/* ── Inject animation keyframes once ── */}
       <style>{ANIM_STYLE}</style>
 
+      {/* ── Instructions modal ── */}
+      {showInstructions && (
+        <InstructionsModal onClose={() => setShowInstructions(false)} />
+      )}
+
       {/* ── Export modal ── */}
       {showExport && tree && (
         <ExportModal
@@ -733,6 +903,13 @@ export default function Page() {
             onClick={() => setShowImport(v => !v)}
           >
             ⬆ Importar JSON
+          </Btn>
+          {/* Instructions */}
+          <Btn
+            color={P.cyan} colorDim={P.cyanDim}
+            onClick={() => setShowInstructions(true)}
+          >
+            📖 Instrucciones
           </Btn>
         </div>
 
