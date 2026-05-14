@@ -50,6 +50,9 @@ export function useBSTState() {
  
   // ── Toast ─────────────────────────────────────────────────────────────────
   const [toast, setToast]           = useState<string | null>(null);
+
+  // ── Live preview: true when tree grows node-by-node via manual input ──────
+  const [livePreview, setLivePreview] = useState(false);
  
   // Keep ref in sync so callbacks always read latest values
   useEffect(() => { valuesRef.current = values; }, [values]);
@@ -87,14 +90,20 @@ export function useBSTState() {
       showToast("⚠ Máximo 30 elementos.");
       return;
     }
-    setValues(prev => { const next = [...prev, num]; valuesRef.current = next; return next; });
+    const next = [...valuesRef.current, num];
+    valuesRef.current = next;
+    setValues(next);
     setInputText("");
-    setBuildResult(null);
     setTraversalResult(null);
     setTraversalStep(0);
+    setLivePreview(true);
+    // Auto-build so the tree renders immediately without pressing the button
+    const output = computeBSTBuild(next);
+    setBuildResult(output.error ? null : output);
   }, []);
  
   // ─── Load values atomically (used by Random generator) ────────────────────
+  // Does NOT auto-build — tree only appears after pressing BUILD TREE
   const loadValues = useCallback((nums: number[]) => {
     const clean = nums.filter(n => isFinite(n)).slice(0, 30);
     valuesRef.current = clean;
@@ -105,17 +114,26 @@ export function useBSTState() {
     setTraversalStep(0);
     setIsPlaying(false);
     setRebuildResult(null);
+    setLivePreview(false);
   }, []);
  
   const removeValue = useCallback((idx: number) => {
-    setValues(prev => prev.filter((_, i) => i !== idx));
-    setBuildResult(null);
+    const next = valuesRef.current.filter((_, i) => i !== idx);
+    valuesRef.current = next;
+    setValues(next);
     setTraversalResult(null);
     setTraversalStep(0);
-  }, []);
+    if (livePreview) {
+      const output = computeBSTBuild(next);
+      setBuildResult(next.length > 0 && !output.error ? output : null);
+    } else {
+      setBuildResult(null);
+    }
+  }, [livePreview]);
  
   const clear = useCallback(() => {
     setValues([]);
+    valuesRef.current = [];
     setInputText("");
     setBuildResult(null);
     setTraversalResult(null);
@@ -124,6 +142,7 @@ export function useBSTState() {
     setRebuildResult(null);
     setRebuildInorder("");
     setRebuildSecond("");
+    setLivePreview(false);
   }, []);
  
   const build = useCallback(() => {
@@ -267,6 +286,7 @@ export function useBSTState() {
     currentTraversal,
     activeRoot,
     totalValues: values.length,
+    livePreview,
  
     // ─ Setters
     setInputText,

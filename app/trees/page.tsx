@@ -12,7 +12,29 @@ import type {
   RebuildResult,
 } from "../../algorithms/tree";
 
-// ─── Paleta (idéntica al proyecto) ────────────────────────────────────────────
+// ─── Node animation keyframes (injected once) ────────────────────────────────
+const ANIM_STYLE = `
+@keyframes nodePopIn {
+  0%   { transform: scale(0) translate(0,0); opacity: 0; }
+  60%  { transform: scale(1.18) translate(0,0); opacity: 1; }
+  100% { transform: scale(1) translate(0,0); opacity: 1; }
+}
+@keyframes edgeDraw {
+  from { stroke-dashoffset: 1; opacity: 0; }
+  to   { stroke-dashoffset: 0; opacity: 1; }
+}
+@keyframes glowPulse {
+  0%, 100% { filter: drop-shadow(0 0 5px currentColor); }
+  50%       { filter: drop-shadow(0 0 14px currentColor); }
+}
+`;
+
+// ─── Build animation speed (ms per node stagger step) ────────────────────────
+const BUILD_ANIM_STAGGER_MS = 220;   // delay between each node appearing
+const BUILD_NODE_DURATION   = "1.2s"; // how long each node's pop-in lasts
+const BUILD_EDGE_DURATION   = "1.0s"; // how long each edge draw lasts
+
+// ─── Paleta ───────────────────────────────────────────────────────────────────
 const P = {
   bg:        "#0a0a0a",
   surface:   "#111111",
@@ -92,8 +114,8 @@ function SectionHeader({ icon, title }: { icon: string; title: string }) {
 
 // ─── BST Tree SVG renderer ────────────────────────────────────────────────────
 const NODE_R = 22;
-const H_GAP  = 52;  // horizontal spacing between sibling subtrees
-const V_GAP  = 72;  // vertical spacing between levels
+const H_GAP  = 52;
+const V_GAP  = 72;
 
 interface LayoutNode {
   node: BSTNode;
@@ -117,16 +139,19 @@ function computeLayout(
   computeLayout(node.right, depth + 1, counter, result);
 }
 
+// animKey changes whenever the tree root changes, triggering re-animation
 function BSTTreeSVG({
   root,
   highlightedValues = [],
   visitedValues     = [],
   currentValue,
+  animKey,
 }: {
   root: BSTNode;
   highlightedValues?: number[];
   visitedValues?: number[];
   currentValue?: number;
+  animKey?: string | number;
 }) {
   const layout: LayoutNode[] = [];
   computeLayout(root, 0, { v: 0 }, layout);
@@ -140,70 +165,98 @@ function BSTTreeSVG({
   const svgW = Math.max(maxX - minX + NODE_R * 2 + 80, 300);
   const svgH = maxY + NODE_R * 2 + 60;
 
-  // Build lookup by val for quick access
   const byVal = new Map<number, LayoutNode>();
   layout.forEach(l => byVal.set(l.node.val, l));
 
   const edges: JSX.Element[] = [];
   const nodes: JSX.Element[] = [];
 
-  layout.forEach(({ node, x, y }) => {
+  layout.forEach(({ node, x, y }, layoutIdx) => {
     const cx = x + offX;
     const cy = y + offY;
 
+    // ── Edges with draw animation
     if (node.left) {
       const cl = byVal.get(node.left.val)!;
+      const dx = cl.x + offX - cx;
+      const dy = cl.y + offY - cy;
+      const len = Math.sqrt(dx * dx + dy * dy);
       edges.push(
         <line
-          key={`e-${node.val}-l`}
+          key={`e-${node.val}-l-${animKey}`}
           x1={cx} y1={cy}
           x2={cl.x + offX} y2={cl.y + offY}
           stroke={P.border} strokeWidth={1.5}
+          strokeDasharray={len}
+          strokeDashoffset={len}
+          style={{
+            animation: `edgeDraw ${BUILD_EDGE_DURATION} ease forwards`,
+            animationDelay: `${layoutIdx * BUILD_ANIM_STAGGER_MS + BUILD_ANIM_STAGGER_MS}ms`,
+          }}
         />
       );
     }
     if (node.right) {
       const cr = byVal.get(node.right.val)!;
+      const dx = cr.x + offX - cx;
+      const dy = cr.y + offY - cy;
+      const len = Math.sqrt(dx * dx + dy * dy);
       edges.push(
         <line
-          key={`e-${node.val}-r`}
+          key={`e-${node.val}-r-${animKey}`}
           x1={cx} y1={cy}
           x2={cr.x + offX} y2={cr.y + offY}
           stroke={P.border} strokeWidth={1.5}
+          strokeDasharray={len}
+          strokeDashoffset={len}
+          style={{
+            animation: `edgeDraw ${BUILD_EDGE_DURATION} ease forwards`,
+            animationDelay: `${layoutIdx * BUILD_ANIM_STAGGER_MS + BUILD_ANIM_STAGGER_MS}ms`,
+          }}
         />
       );
     }
 
-    const isCurrent = node.val === currentValue;
-    const isVisited = visitedValues.includes(node.val);
+    const isCurrent    = node.val === currentValue;
+    const isVisited    = visitedValues.includes(node.val);
     const isHighlighted = highlightedValues.includes(node.val);
 
-    let stroke = P.border;
-    let fill   = "#111";
+    let stroke    = P.border;
+    let fill      = "#111";
     let textColor = P.text;
 
     if (isCurrent) {
-      stroke = P.cyan;
-      fill   = "rgba(0,229,255,0.18)";
+      stroke = P.cyan;   fill = "rgba(0,229,255,0.18)";
     } else if (isVisited) {
-      stroke = P.green;
-      fill   = "rgba(0,255,136,0.12)";
-      textColor = P.green;
+      stroke = P.green;  fill = "rgba(0,255,136,0.12)"; textColor = P.green;
     } else if (isHighlighted) {
-      stroke = P.purple;
-      fill   = P.purpleDim;
+      stroke = P.purple; fill = P.purpleDim;
     }
 
+    // stagger delay per node, based on in-order position (layoutIdx)
+    const delay = `${layoutIdx * BUILD_ANIM_STAGGER_MS}ms`;
+
     nodes.push(
-      <g key={`n-${node.val}`}>
+      <g
+        key={`n-${node.val}-${animKey}`}
+        style={{
+          transformOrigin: `${cx}px ${cy}px`,
+          animation: `nodePopIn ${BUILD_NODE_DURATION} cubic-bezier(0.34,1.56,0.64,1) both`,
+          animationDelay: delay,
+        }}
+      >
         <circle
           cx={cx} cy={cy} r={NODE_R}
           fill={fill}
           stroke={stroke}
           strokeWidth={isCurrent ? 2.5 : 1.5}
           style={{
-            filter: isCurrent ? `drop-shadow(0 0 6px ${P.cyan}88)` : "none",
-            transition: "all 0.25s ease",
+            filter: isCurrent
+              ? `drop-shadow(0 0 6px ${P.cyan}88)`
+              : isVisited
+                ? `drop-shadow(0 0 4px ${P.green}55)`
+                : "none",
+            transition: "fill 0.25s ease, stroke 0.25s ease",
           }}
         />
         <text
@@ -289,27 +342,298 @@ const REBUILD_OPTIONS: { value: RebuildMode; label: string }[] = [
   { value: "inorder+postorder", label: "In-order + Post-order" },
 ];
 
+// ─── Serialise a BSTNode tree into a plain nested object ─────────────────────
+function serializeNode(node: BSTNode | null): object | null {
+  if (!node) return null;
+  return {
+    val:   node.val,
+    left:  serializeNode(node.left),
+    right: serializeNode(node.right),
+  };
+}
+
+// ─── JSON Export – pure download (no prompt) ─────────────────────────────────
+function downloadTreeAsJSON(
+  tree: BSTBuildResult | RebuildResult,
+  filename: string,
+  values?: number[],
+) {
+  const safe = (filename.trim() || "bst_tree").replace(/\.json$/i, "") + ".json";
+
+  const payload: Record<string, unknown> = {
+    exportedAt: new Date().toISOString(),
+    nodeCount:  tree.nodeCount,
+    height:     tree.height,
+    sequences: {
+      inorder:   tree.inorder,
+      preorder:  tree.preorder,
+      postorder: tree.postorder,
+    },
+    tree: serializeNode(tree.root),
+  };
+  if (values) payload.insertionOrder = values;
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = safe;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Export modal ─────────────────────────────────────────────────────────────
+function ExportModal({
+  tree,
+  values,
+  onClose,
+}: {
+  tree: BSTBuildResult | RebuildResult;
+  values?: number[];
+  onClose: () => void;
+}) {
+  const [name, setName] = useState("bst_tree");
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus the input when the modal opens
+  useEffect(() => { nameRef.current?.focus(); }, []);
+
+  const handleDownload = () => {
+    downloadTreeAsJSON(tree, name, values);
+    onClose();
+  };
+
+  const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") handleDownload();
+    if (e.key === "Escape") onClose();
+  };
+
+  return (
+    /* Backdrop */
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0,
+        background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        zIndex: 1000,
+      }}
+    >
+      {/* Dialog */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: P.surface, border: `1px solid ${P.yellow}55`,
+          borderRadius: 12, padding: "1.6rem 1.8rem",
+          width: "min(420px, 90vw)",
+          boxShadow: `0 0 40px ${P.yellow}22`,
+          fontFamily: "'Courier New', monospace",
+        }}
+      >
+        <div style={{ fontSize: 13, color: P.yellow, fontWeight: "bold", marginBottom: "0.4rem", letterSpacing: 1 }}>
+          ⬇ Exportar JSON
+        </div>
+        <div style={{ fontSize: 10, color: P.muted, marginBottom: "1rem" }}>
+          El archivo se guardará como <span style={{ color: P.cyan }}>{(name.trim() || "bst_tree").replace(/\.json$/i, "")}.json</span>
+        </div>
+
+        <label style={{ fontSize: 10, color: P.muted, display: "block", marginBottom: 6 }}>
+          NOMBRE DEL ARCHIVO
+        </label>
+        <input
+          ref={nameRef}
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={handleKey}
+          placeholder="bst_tree"
+          style={{
+            width: "100%", boxSizing: "border-box",
+            padding: "9px 12px",
+            background: "#0a0a0a", border: `1px solid ${P.yellow}88`,
+            borderRadius: 6, color: P.text,
+            fontFamily: "'Courier New', monospace", fontSize: 13, outline: "none",
+            marginBottom: "1.2rem",
+          }}
+          onFocus={e => (e.target.style.borderColor = P.yellow)}
+          onBlur={e => (e.target.style.borderColor = `${P.yellow}88`)}
+        />
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <Btn color={P.muted} colorDim="transparent" onClick={onClose}>
+            Cancelar
+          </Btn>
+          <Btn color={P.yellow} colorDim={P.yellowDim} filled onClick={handleDownload}>
+            ⬇ Descargar
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── JSON Import panel ────────────────────────────────────────────────────────
+function JSONImportPanel({
+  onImport,
+  onClose,
+}: {
+  onImport: (nums: number[]) => void;
+  onClose: () => void;
+}) {
+  const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const parseAndImport = (raw: string) => {
+    setError(null);
+    try {
+      const obj = JSON.parse(raw);
+      let nums: number[] | null = null;
+
+      // Accept array directly, or insertionOrder, or sequences.inorder
+      if (Array.isArray(obj)) {
+        nums = obj.map(Number);
+      } else if (Array.isArray(obj.insertionOrder)) {
+        nums = obj.insertionOrder.map(Number);
+      } else if (obj.sequences?.inorder && Array.isArray(obj.sequences.inorder)) {
+        nums = obj.sequences.inorder.map(Number);
+      }
+
+      if (!nums || nums.length === 0) {
+        setError("No se encontró una lista de números válida en el JSON.");
+        return;
+      }
+      if (nums.some(n => isNaN(n) || !isFinite(n))) {
+        setError("El JSON contiene valores no numéricos.");
+        return;
+      }
+      onImport(nums.slice(0, 30));
+      onClose();
+    } catch {
+      setError("JSON inválido. Verifica el formato del archivo.");
+    }
+  };
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const content = ev.target?.result as string;
+      setText(content);
+      parseAndImport(content);
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <div style={{
+      marginTop: 8, padding: "1rem",
+      background: "#0a0a0a", border: `1px solid ${P.border}`,
+      borderRadius: 8,
+    }}>
+      <SectionHeader icon="📥" title="Importar desde JSON" />
+      <p style={{ fontSize: 10, color: P.muted, marginBottom: 8 }}>
+        Acepta: array de números, <code style={{ color: P.cyan }}>insertionOrder</code>, o <code style={{ color: P.cyan }}>sequences.inorder</code>.
+      </p>
+
+      {/* File picker */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <input ref={fileRef} type="file" accept=".json,application/json"
+          onChange={handleFile}
+          style={{ display: "none" }} />
+        <Btn color={P.cyan} colorDim={P.cyanDim}
+          onClick={() => fileRef.current?.click()}>
+          📂 Seleccionar archivo .json
+        </Btn>
+        <span style={{ color: P.muted, fontSize: 10 }}>o pega el JSON abajo</span>
+      </div>
+
+      {/* Textarea */}
+      <textarea
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder={'[\n  38, 27, 43, 3, 9, 82, 10\n]\n\n// o pega tu JSON exportado aquí'}
+        rows={6}
+        style={{
+          width: "100%", padding: "10px 12px", boxSizing: "border-box",
+          background: P.surface, border: `1px solid ${P.border}`,
+          borderRadius: 6, color: P.text, resize: "vertical",
+          fontFamily: "'Courier New', monospace", fontSize: 11, outline: "none",
+        }}
+        onFocus={e => (e.target.style.borderColor = P.cyan)}
+        onBlur={e => (e.target.style.borderColor = P.border)}
+      />
+
+      {error && (
+        <div style={{ marginTop: 6, fontSize: 11, color: P.red }}>⚠ {error}</div>
+      )}
+
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <Btn color={P.green} colorDim={P.greenDim} filled
+          onClick={() => parseAndImport(text)}>
+          ✓ Importar
+        </Btn>
+        <Btn color={P.muted} colorDim="transparent" onClick={onClose}>
+          ✕ Cancelar
+        </Btn>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Page() {
   const state  = useBSTState();
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const playRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const inputRef  = useRef<HTMLInputElement>(null);
+  const playRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
+
+  // JSON import panel toggle
+  const [showImport, setShowImport] = useState(false);
+
+  // Export modal
+  const [showExport, setShowExport] = useState(false);
+
+  // animKey: changes whenever the "displayed" tree root changes → re-triggers CSS animations
+  const [animKey, setAnimKey] = useState(0);
+  const prevRootRef = useRef<BSTNode | null>(null);
 
   const traversal = state.currentTraversal;
-  const tree      = state.currentTree ?? state.currentRebuild;
+  // Only show the tree relevant to the active tab
+  const tree =
+    state.activeTab === "rebuild"
+      ? state.currentRebuild
+      : state.currentTree ?? state.currentRebuild;
+
+  // The root used for visualization and traversal — also tab-scoped
+  const activeRoot =
+    state.activeTab === "rebuild"
+      ? (state.currentRebuild?.root ?? null)
+      : state.activeRoot;
 
   const currentStepData = traversal?.steps[state.traversalStep];
   const progress = traversal
     ? ((state.traversalStep + 1) / traversal.steps.length) * 100
     : 0;
 
-  // ── Auto-play ──────────────────────────────────────────────────────────────
+  // Fire animKey update whenever the active tree root changes
+  useEffect(() => {
+    if (activeRoot !== prevRootRef.current) {
+      prevRootRef.current = activeRoot;
+      setAnimKey(k => k + 1);
+    }
+  }, [activeRoot]);
+
+  // Also re-animate when traversal result is freshly computed (step reset to 0)
+  useEffect(() => {
+    if (traversal) setAnimKey(k => k + 1);
+  }, [traversal]);
+
+  // ── Auto-play ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (state.isPlaying && traversal) {
-      playRef.current = setInterval(() => {
-        state.nextStep();
-      }, state.playSpeed);
+      playRef.current = setInterval(() => { state.nextStep(); }, state.playSpeed);
     } else {
       if (playRef.current) clearInterval(playRef.current);
     }
@@ -330,7 +654,6 @@ export default function Page() {
     }
   };
 
-  // Highlighted nodes = currently visiting path
   const highlightedValues = currentStepData?.path ?? [];
   const visitedValues     = currentStepData?.visited ?? [];
   const currentValue      = currentStepData?.visiting !== -1 ? currentStepData?.visiting : undefined;
@@ -340,6 +663,17 @@ export default function Page() {
       minHeight: "100vh", background: P.bg,
       fontFamily: "'Courier New', monospace", color: P.text,
     }}>
+      {/* ── Inject animation keyframes once ── */}
+      <style>{ANIM_STYLE}</style>
+
+      {/* ── Export modal ── */}
+      {showExport && tree && (
+        <ExportModal
+          tree={tree}
+          values={state.currentTree?.values}
+          onClose={() => setShowExport(false)}
+        />
+      )}
 
       {/* ── Toast ── */}
       {state.toast && (
@@ -384,7 +718,34 @@ export default function Page() {
           <Btn color={P.red} colorDim={P.redDim} onClick={state.clear}>
             ✕ Limpiar todo
           </Btn>
+          <Divider />
+          {/* JSON Export */}
+          <Btn
+            color={P.yellow} colorDim={P.yellowDim}
+            disabled={!tree}
+            onClick={() => { if (tree) setShowExport(true); }}
+          >
+            ⬇ Exportar JSON
+          </Btn>
+          {/* JSON Import toggle */}
+          <Btn
+            color={P.orange} colorDim={P.orangeDim}
+            onClick={() => setShowImport(v => !v)}
+          >
+            ⬆ Importar JSON
+          </Btn>
         </div>
+
+        {/* JSON Import panel (collapsible) */}
+        {showImport && (
+          <JSONImportPanel
+            onImport={nums => {
+              state.loadValues(nums);
+              setShowImport(false);
+            }}
+            onClose={() => setShowImport(false)}
+          />
+        )}
 
         {/* ════ TAB SWITCHER ════ */}
         <div style={{
@@ -402,12 +763,10 @@ export default function Page() {
                 style={{
                   flex: 1, padding: "12px 8px",
                   background: active ? P.purpleDim : "transparent",
-                  // 👇 SOLUCIÓN: Desglosar el border: "none"
                   borderTop: "none",
                   borderLeft: "none",
                   borderRight: "none",
                   borderBottom: active ? `2px solid ${P.purple}` : "2px solid transparent",
-                  // -----------------------------------------
                   color: active ? P.purple : P.muted,
                   cursor: "pointer", fontFamily: "'Courier New', monospace",
                   fontSize: 11, fontWeight: "bold", letterSpacing: 0.5,
@@ -489,21 +848,37 @@ export default function Page() {
             </div>
 
             {/* Random generator */}
-            <RandomPanel onGenerate={(nums) => {
-              state.loadValues(nums);
-            }} />
+            <RandomPanel onGenerate={(nums) => { state.loadValues(nums); }} />
 
-            {/* Build button */}
-            <button
-              onClick={() => { state.build(); }}
-              style={{
-                ...btnFilled(P.cyan),
-                width: "100%", justifyContent: "center",
-                padding: "14px", marginBottom: "1.5rem", fontSize: 13,
-              }}
-            >
-              🔨 BUILD TREE
-            </button>
+            {/* Build button — hidden during live preview; shown only for random/batch mode */}
+            {state.livePreview ? (
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                padding: "12px", marginBottom: "1.5rem",
+                background: P.purpleDim, border: `1px solid ${P.purple}55`,
+                borderRadius: 8, fontSize: 12, color: P.purple,
+                fontFamily: "'Courier New', monospace",
+              }}>
+                <span style={{
+                  display: "inline-block", width: 8, height: 8, borderRadius: "50%",
+                  background: P.purple,
+                  boxShadow: `0 0 6px ${P.purple}`,
+                  animation: "glowPulse 1.6s ease-in-out infinite",
+                }} />
+                Vista en vivo activa — el árbol se actualiza al agregar números
+              </div>
+            ) : (
+              <button
+                onClick={() => { state.build(); }}
+                style={{
+                  ...btnFilled(P.cyan),
+                  width: "100%", justifyContent: "center",
+                  padding: "14px", marginBottom: "1.5rem", fontSize: 13,
+                }}
+              >
+                🔨 BUILD TREE
+              </button>
+            )}
           </>
         )}
 
@@ -520,9 +895,7 @@ export default function Page() {
               {TRAVERSAL_OPTIONS.map(opt => (
                 <button
                   key={opt.value}
-                  onClick={() => {
-                    state.setTraversalType(opt.value as TraversalType);
-                  }}
+                  onClick={() => { state.setTraversalType(opt.value as TraversalType); }}
                   style={{
                     ...btnGhost(
                       state.traversalType === opt.value ? P.cyan : P.muted,
@@ -767,6 +1140,7 @@ export default function Page() {
               <div>
                 <label style={{ fontSize: 10, color: P.muted, display: "block", marginBottom: 4 }}>
                   SECUENCIA {state.rebuildMode === "inorder+preorder" ? "PRE-ORDER" : "POST-ORDER"}
+                  {" "}(separada por espacios o comas)
                 </label>
                 <input
                   type="text"
@@ -823,9 +1197,9 @@ export default function Page() {
             display: "flex", flexWrap: "wrap", gap: 12, marginBottom: "1.2rem",
           }}>
             {[
-              { label: "Nodos",   value: tree.nodeCount, color: P.cyan   },
-              { label: "Altura",  value: tree.height,    color: P.purple },
-              { label: "Raíz",    value: tree.root?.val ?? "-", color: P.green  },
+              { label: "Nodos",     value: tree.nodeCount,           color: P.cyan   },
+              { label: "Altura",    value: tree.height,              color: P.purple },
+              { label: "Raíz",      value: tree.root?.val ?? "-",    color: P.green  },
               { label: "In-order",  value: tree.inorder.join(", "),  color: P.yellow },
             ].map(s => (
               <div key={s.label} style={{
@@ -833,7 +1207,10 @@ export default function Page() {
                 borderRadius: 8, padding: "10px 16px", flex: "1 1 100px", minWidth: 100,
               }}>
                 <div style={{ fontSize: 10, color: P.muted, marginBottom: 4 }}>{s.label}</div>
-                <div style={{ fontSize: typeof s.value === "string" && s.value.length > 10 ? 10 : 16, color: s.color, fontWeight: "bold" }}>
+                <div style={{
+                  fontSize: typeof s.value === "string" && s.value.length > 10 ? 10 : 16,
+                  color: s.color, fontWeight: "bold",
+                }}>
                   {s.value}
                 </div>
               </div>
@@ -846,7 +1223,16 @@ export default function Page() {
           background: P.surface, border: `1px solid ${P.border}`,
           borderRadius: 8, padding: "1.2rem", marginBottom: "1.5rem",
         }}>
-          <SectionHeader icon="🌳" title="Visualización del Árbol" />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: "0.8rem" }}>
+            <SectionHeader icon="🌳" title="Visualización del Árbol" />
+            {/* Export button inline near the tree */}
+            {tree && (
+              <Btn color={P.yellow} colorDim={P.yellowDim}
+                onClick={() => setShowExport(true)}>
+                ⬇ Exportar JSON
+              </Btn>
+            )}
+          </div>
 
           {/* Legend */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", marginBottom: 12 }}>
@@ -872,16 +1258,19 @@ export default function Page() {
             display: "flex", alignItems: "center", justifyContent: "center",
             padding: "0.5rem",
           }}>
-            {state.activeRoot ? (
+            {activeRoot ? (
               <BSTTreeSVG
-                root={state.activeRoot}
+                root={activeRoot}
                 highlightedValues={highlightedValues}
                 visitedValues={visitedValues}
                 currentValue={currentValue}
+                animKey={animKey}
               />
             ) : (
               <div style={{ color: P.muted, fontSize: 12, padding: "2rem", textAlign: "center" }}>
-                Agrega números y presiona "BUILD TREE" para visualizar el árbol
+                {state.activeTab === "rebuild"
+                  ? "Ingresa las secuencias y presiona \"Reconstruir\" para visualizar el árbol"
+                  : "Agrega números y presiona \"BUILD TREE\" para visualizar el árbol"}
               </div>
             )}
           </div>
