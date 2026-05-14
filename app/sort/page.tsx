@@ -225,6 +225,7 @@ export default function SortPage() {
   const router = useRouter();
   const [showAlgoMenu, setShowAlgoMenu] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
+  const [showGuide, setShowGuide] = useState(false); // Estado para la guía
   
   // Random Generator State
   const [randMin, setRandMin] = useState<number>(10);
@@ -361,6 +362,13 @@ export default function SortPage() {
 
             <Divider />
 
+            {/* Botón para la Guía */}
+            <Btn color={P.purple} colorDim={P.purpleDim} onClick={() => setShowGuide(v => !v)}>
+              📖 Guía
+            </Btn>
+
+            <Divider />
+
             <div style={{ position: "relative" }}>
               <Btn color={P.yellow} colorDim={P.yellowDim} onClick={() => setShowExamples(v => !v)}>
                 ★ Ejemplos
@@ -413,6 +421,51 @@ export default function SortPage() {
           </div>
         </div>
 
+        {/* ════ GUÍA DE USUARIO (Desplegable) ════ */}
+        {showGuide && (
+          <div style={{
+            background: P.surface, border: `1px solid ${P.purple}`,
+            borderRadius: 8, padding: "1.5rem", marginBottom: "1.5rem",
+            boxShadow: `0 0 20px ${P.purpleDim}`, animation: "fadeIn 0.3s ease"
+          }}>
+            <SectionHeader icon="📖" title="Guía de Uso del Visualizador" />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.5rem", fontSize: 12, color: P.text }}>
+              
+              {/* Sección 1: Datos */}
+              <div>
+                <h4 style={{ color: P.purple, margin: "0 0 10px 0", fontSize: 13 }}>1. Entrada de Datos</h4>
+                <ul style={{ margin: 0, paddingLeft: 20, color: P.muted, display: "flex", flexDirection: "column", gap: 8, lineHeight: 1.4 }}>
+                  <li><b>Manual:</b> Escribe un número en la barra y presiona <kbd style={{ background: "#222", padding: "2px 4px", borderRadius: 3 }}>Enter</kbd> o el botón <b>+ Agregar</b>.</li>
+                  <li><b>Aleatorio:</b> Define el rango estableciendo el <b>MÍNIMO</b> y el <b>MÁXIMO</b>. Escribe cuántos números quieres en <b>CANTIDAD</b> y haz clic en <b>Generar</b>.</li>
+                  <li><b>Importar:</b> Sube un archivo (.json, .csv, o .txt) para cargar conjuntos de datos grandes de forma rápida.</li>
+                </ul>
+              </div>
+
+              {/* Sección 2: Botones y Control */}
+              <div>
+                <h4 style={{ color: P.purple, margin: "0 0 10px 0", fontSize: 13 }}>2. Barra de Herramientas</h4>
+                <ul style={{ margin: 0, paddingLeft: 20, color: P.muted, display: "flex", flexDirection: "column", gap: 8, lineHeight: 1.4 }}>
+                  <li><b>⚙ Algoritmo:</b> Haz clic para desplegar y cambiar la técnica de ordenamiento (Selection, Insertion, Merge o Shell).</li>
+                  <li><b>▶ Resolver:</b> ¡El botón más importante! Procesa tus datos actuales y prepara la animación para visualizarse.</li>
+                  <li><b>★ Ejemplos:</b> Carga automáticamente números predefinidos ideales para ver cómo funcionan los algoritmos.</li>
+                  <li><b>✕ Limpiar:</b> Borra el lienzo y todos los datos ingresados.</li>
+                </ul>
+              </div>
+
+              {/* Sección 3: Reproducción */}
+              <div style={{ gridColumn: "1 / -1", borderTop: `1px solid ${P.border}`, paddingTop: "1.2rem" }}>
+                <h4 style={{ color: P.purple, margin: "0 0 10px 0", fontSize: 13 }}>3. Controles de Visualización (Aparecen al Resolver)</h4>
+                <ul style={{ margin: 0, paddingLeft: 20, color: P.muted, display: "flex", flexDirection: "column", gap: 8, lineHeight: 1.4 }}>
+                  <li>Inicia la animación automática con <b>▶ Reproducir</b> y detenla cuando quieras con <b>⏸ Pausar</b>.</li>
+                  <li>Analiza paso a paso utilizando los controles manuales <b>◀ Anterior</b> y <b>Siguiente ▶</b>.</li>
+                  <li>Ajusta qué tan rápido ocurre la animación seleccionando la <b>Velocidad</b> (desde Lento hasta Turbo).</li>
+                  <li><b>Lista de Pasos:</b> En la parte inferior, puedes hacer clic directamente en cualquier paso escrito para que las barras salten exactamente a ese instante temporal.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ════ INPUT SECTION ════ */}
         <div style={{
           background: P.surface, border: `1px solid ${P.border}`,
@@ -445,80 +498,100 @@ export default function SortPage() {
             </Btn>
           </div>
 
-          {/* Generador y Archivos */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: "1rem", alignItems: "center" }}>
-            {/* Randomizer */}
-            <div style={{ display: "flex", gap: 8, alignItems: "center", background: "#0a0a0a", padding: "8px 12px", borderRadius: 6, border: `1px solid ${P.border}` }}>
-              <span style={{ fontSize: 11, color: P.muted }}>Aleatorios:</span>
-              <input type="number" value={randMin} onChange={e => setRandMin(Number(e.target.value))} placeholder="Min" style={inputStyle} title="Mínimo" />
-              <input type="number" value={randMax} onChange={e => setRandMax(Number(e.target.value))} placeholder="Max" style={inputStyle} title="Máximo" />
-              <input type="number" value={randCount} onChange={e => setRandCount(Number(e.target.value))} placeholder="Cant" style={inputStyle} title="Cantidad" />
-              <Btn color={P.orange} colorDim={P.orangeDim} onClick={() => state.generateRandom(randMin, randMax, randCount)}>
-                Generar
-              </Btn>
+          {/* Randomizer con Títulos */}
+          <div style={{ 
+            display: "flex", 
+            flexWrap: "wrap", 
+            gap: 16, 
+            alignItems: "flex-end", 
+            background: "#0a0a0a", 
+            padding: "14px", 
+            borderRadius: 8, 
+            border: `1px solid ${P.border}`,
+            marginBottom: "1rem"
+          }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 10, color: P.purple, fontWeight: "bold", letterSpacing: 1 }}>MÍNIMO</label>
+              <input type="number" value={randMin} onChange={e => setRandMin(Number(e.target.value))} style={inputStyle} />
+            </div>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 10, color: P.purple, fontWeight: "bold", letterSpacing: 1 }}>MÁXIMO</label>
+              <input type="number" value={randMax} onChange={e => setRandMax(Number(e.target.value))} style={inputStyle} />
             </div>
 
-            {/* Importer */}
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                accept=".json,.csv,.txt" 
-                style={{ display: "none" }} 
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    state.importFile(e.target.files[0]);
-                    e.target.value = ''; // reset to allow importing the same file again if needed
-                  }
-                }} 
-              />
-              <Btn color={P.green} colorDim={P.greenDim} onClick={() => fileInputRef.current?.click()}>
-                Importar (JSON, CSV, TXT)
-              </Btn>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 10, color: P.purple, fontWeight: "bold", letterSpacing: 1 }}>CANTIDAD</label>
+              <input type="number" value={randCount} onChange={e => setRandCount(Number(e.target.value))} style={inputStyle} />
             </div>
+
+            <Btn color={P.orange} colorDim={P.orangeDim} onClick={() => state.generateRandom(randMin, randMax, randCount)}>
+              Generar
+            </Btn>
+          </div>
+
+          {/* Importer */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              accept=".json,.csv,.txt" 
+              style={{ display: "none" }} 
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  state.importFile(e.target.files[0]);
+                  e.target.value = ''; // reset to allow importing the same file again if needed
+                }
+              }} 
+            />
+            <Btn color={P.green} colorDim={P.greenDim} onClick={() => fileInputRef.current?.click()}>
+              Importar (JSON, CSV, TXT)
+            </Btn>
           </div>
 
           {/* Chips */}
-          {state.values.length > 0 ? (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {state.values.map((v, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 5,
-                    padding: "4px 10px",
-                    background: P.purpleDim, border: `1px solid ${P.purple}44`,
-                    borderRadius: 20, color: P.purple,
-                    fontFamily: "'Courier New', monospace", fontSize: 12,
-                  }}
-                >
-                  <span>{v}</span>
-                  <button
-                    onClick={() => state.removeValue(i)}
+          <div style={{ marginTop: "1rem" }}>
+            {state.values.length > 0 ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {state.values.map((v, i) => (
+                  <div
+                    key={i}
                     style={{
-                      background: "none", border: "none", color: P.red,
-                      cursor: "pointer", fontSize: 12, lineHeight: 1, padding: 0,
+                      display: "flex", alignItems: "center", gap: 5,
+                      padding: "4px 10px",
+                      background: P.purpleDim, border: `1px solid ${P.purple}44`,
+                      borderRadius: 20, color: P.purple,
+                      fontFamily: "'Courier New', monospace", fontSize: 12,
                     }}
                   >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ color: P.muted, fontSize: 11, padding: "8px 0" }}>
-              Sin elementos — agrega números, genera aleatorios o carga un archivo
-            </div>
-          )}
+                    <span>{v}</span>
+                    <button
+                      onClick={() => state.removeValue(i)}
+                      style={{
+                        background: "none", border: "none", color: P.red,
+                        cursor: "pointer", fontSize: 12, lineHeight: 1, padding: 0,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: P.muted, fontSize: 11, padding: "8px 0" }}>
+                Sin elementos — agrega números, genera aleatorios o carga un archivo
+              </div>
+            )}
 
-          <div style={{
-            marginTop: 10, fontSize: 10, color: P.muted,
-            display: "flex", justifyContent: "space-between",
-          }}>
-            <span>{state.totalValues} / 30 elementos</span>
-            <span style={{ color: state.totalValues > 0 ? P.purple : P.muted }}>
-              {state.totalValues > 0 ? `Algoritmo: ${selectedAlgo.label}` : ""}
-            </span>
+            <div style={{
+              marginTop: 10, fontSize: 10, color: P.muted,
+              display: "flex", justifyContent: "space-between",
+            }}>
+              <span>{state.totalValues} / 30 elementos</span>
+              <span style={{ color: state.totalValues > 0 ? P.purple : P.muted }}>
+                {state.totalValues > 0 ? `Algoritmo: ${selectedAlgo.label}` : ""}
+              </span>
+            </div>
           </div>
         </div>
 
